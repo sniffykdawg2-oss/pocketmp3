@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && cp dist/index.vite.html dist/index.html",
+    "build:pages-root": "npm run build && rm -rf assets icons && cp -R dist/assets ./assets && cp -R public/icons ./icons && cp public/manifest.json ./manifest.json && cp public/sw.js ./sw.js",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
