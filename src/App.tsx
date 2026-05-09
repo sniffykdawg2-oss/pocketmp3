@@ -73,6 +73,13 @@ export default function App() {
   const playableTracks = useMemo(() => tracks.filter((track) => track.file), [tracks]);
   const currentTrack = tracks.find((track) => track.id === playback.currentTrackId);
 
+  function clearLoadedAudio() {
+    audioRef.current?.removeAttribute("src");
+    loadedTrackIdRef.current = null;
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
+  }
+
   async function refresh() {
     try {
       const [nextTracks, nextPlaylists, nextSettings] = await Promise.all([getTracks(), getPlaylists(), getSettings()]);
@@ -112,8 +119,7 @@ export default function App() {
   useEffect(() => {
     refresh();
     return () => {
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      loadedTrackIdRef.current = null;
+      clearLoadedAudio();
       coverUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
@@ -161,9 +167,7 @@ export default function App() {
     );
     if (playback.currentTrackId === trackId) {
       pause();
-      loadedTrackIdRef.current = null;
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
+      clearLoadedAudio();
       setPlayback((state) => ({ ...state, currentTrackId: undefined, isPlaying: false }));
     }
     await refresh();
@@ -199,7 +203,7 @@ export default function App() {
     if (!track?.file || !audio) return false;
 
     audio.pause();
-    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    clearLoadedAudio();
     const src = URL.createObjectURL(track.file);
     audioUrlRef.current = src;
     loadedTrackIdRef.current = trackId;
@@ -261,13 +265,25 @@ export default function App() {
   function play() {
     const audio = audioRef.current;
     if (!audio) return;
-    if (currentTrack?.file && loadedTrackIdRef.current !== currentTrack.id) {
+    const needsFreshSource =
+      currentTrack?.file &&
+      (loadedTrackIdRef.current !== currentTrack.id || !audio.currentSrc || audio.error || audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE);
+
+    if (needsFreshSource && currentTrack) {
       const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? 0 : 0;
       loadAudioTrack(currentTrack.id, startAt, true, true);
       setPlayback((state) => ({ ...state, isPlaying: true }));
       return;
     }
-    audio.play().then(() => setPlayback((state) => ({ ...state, isPlaying: true }))).catch(() => showError("Playback was blocked. Tap play again after choosing a track."));
+    audio.play().then(() => setPlayback((state) => ({ ...state, isPlaying: true }))).catch(() => {
+      if (currentTrack?.file) {
+        const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? currentTime : 0;
+        loadAudioTrack(currentTrack.id, startAt, true, true);
+        setPlayback((state) => ({ ...state, isPlaying: true }));
+        return;
+      }
+      showError("Playback could not start. Choose a saved MP3 and try again.");
+    });
   }
 
   function pause() {
@@ -341,9 +357,7 @@ export default function App() {
   async function clearData() {
     if (!confirm("Clear all PocketMP3 local data on this device?")) return;
     pause();
-    loadedTrackIdRef.current = null;
-    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-    audioUrlRef.current = null;
+    clearLoadedAudio();
     await clearAllData();
     setPlayback(initialPlayback);
     await refresh();
