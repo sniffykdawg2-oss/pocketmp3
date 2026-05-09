@@ -1,4 +1,4 @@
-import { GripVertical, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, GripVertical, ListMusic, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
 
@@ -10,12 +10,12 @@ interface PlaylistsProps {
   onUpdate: (playlist: Playlist) => void;
   onDelete: (id: string) => void;
   onPlay: (playlist: Playlist) => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
 }
 
 export default function Playlists({ playlists, tracks, selectedId, onCreate, onUpdate, onDelete, onPlay, onSelect }: PlaylistsProps) {
   const [name, setName] = useState("");
-  const playlist = playlists.find((item) => item.id === selectedId) ?? playlists[0];
+  const playlist = playlists.find((item) => item.id === selectedId);
 
   function moveTrack(index: number, direction: -1 | 1) {
     if (!playlist) return;
@@ -39,38 +39,51 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
 
   return (
     <section className="page-enter space-y-5 pb-32">
-      <div>
-        <h1 className="text-3xl font-black">Playlists</h1>
-        <p className="mt-2 text-sm text-white/55">Build queues from local media and saved links.</p>
-      </div>
+      {!playlist ? (
+        <>
+          <div>
+            <h1 className="text-3xl font-black">Playlists</h1>
+            <p className="mt-2 text-sm text-white/55">Build queues from local MP3 files.</p>
+          </div>
 
-      <div className="glass flex gap-2 rounded-3xl p-3">
-        <input className="min-w-0 flex-1 rounded-2xl bg-black/35 px-4 outline-none" placeholder="New playlist" value={name} onChange={(e) => setName(e.target.value)} />
-        <button
-          className="accent-bg grid h-12 w-12 place-items-center rounded-2xl"
-          onClick={() => {
-            if (!name.trim()) return;
-            onCreate(name.trim());
-            setName("");
-          }}
-          aria-label="Create playlist"
-        >
-          <Plus />
-        </button>
-      </div>
+          <div className="glass flex gap-2 rounded-3xl p-3">
+            <input className="min-w-0 flex-1 rounded-2xl bg-black/35 px-4 outline-none" placeholder="New playlist" value={name} onChange={(e) => setName(e.target.value)} />
+            <button
+              className="accent-bg grid h-12 w-12 place-items-center rounded-2xl"
+              onClick={() => {
+                if (!name.trim()) return;
+                onCreate(name.trim());
+                setName("");
+              }}
+              aria-label="Create playlist"
+            >
+              <Plus />
+            </button>
+          </div>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {playlists.map((item) => (
-          <button key={item.id} className={`h-11 shrink-0 rounded-full px-4 font-bold ${playlist?.id === item.id ? "bg-white text-black" : "bg-white/10"}`} onClick={() => onSelect(item.id)}>
-            {item.name}
-          </button>
-        ))}
-      </div>
+          <div className="space-y-3">
+            {playlists.map((item) => (
+              <button key={item.id} className="glass flex min-h-24 w-full items-center gap-4 rounded-3xl p-4 text-left" onClick={() => onSelect(item.id)}>
+                <span className="accent-bg grid h-12 w-12 shrink-0 place-items-center rounded-2xl">
+                  <ListMusic size={22} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xl font-black">{item.name}</span>
+                  <span className="mt-1 block text-sm text-white/50">{item.trackIds.length ? `${item.trackIds.length} songs` : "No songs yet"}</span>
+                </span>
+              </button>
+            ))}
+          </div>
 
-      {playlist ? (
+          {!playlists.length && <div className="glass rounded-3xl p-6 text-center text-white/55">Create your first playlist.</div>}
+        </>
+      ) : (
         <div className="space-y-4">
           <div className="glass slide-up rounded-3xl p-4">
             <div className="flex items-center justify-between gap-3">
+              <button className="grid h-11 w-11 place-items-center rounded-full bg-white/10" onClick={() => onSelect(null)} aria-label="Back to playlists">
+                <ArrowLeft size={19} />
+              </button>
               <input className="min-w-0 flex-1 bg-transparent text-xl font-black outline-none" value={playlist.name} onChange={(e) => onUpdate({ ...playlist, name: e.target.value, updatedAt: Date.now() })} />
               <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-black" onClick={() => onPlay(playlist)} aria-label="Play playlist">
                 <Play size={19} fill="currentColor" />
@@ -127,8 +140,6 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
             </div>
           </div>
         </div>
-      ) : (
-        <div className="glass rounded-3xl p-6 text-center text-white/55">Create your first playlist.</div>
       )}
     </section>
   );
