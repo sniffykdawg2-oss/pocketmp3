@@ -37,7 +37,7 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
   }
 
   return (
-    <section className="space-y-5 pb-32">
+    <section className="page-enter space-y-5 pb-32">
       <div>
         <h1 className="text-3xl font-black">Playlists</h1>
         <p className="mt-2 text-sm text-white/55">Build queues from local media and saved links.</p>
@@ -68,7 +68,7 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
 
       {playlist ? (
         <div className="space-y-4">
-          <div className="glass rounded-3xl p-4">
+          <div className="glass slide-up rounded-3xl p-4">
             <div className="flex items-center justify-between gap-3">
               <input className="min-w-0 flex-1 bg-transparent text-xl font-black outline-none" value={playlist.name} onChange={(e) => onUpdate({ ...playlist, name: e.target.value, updatedAt: Date.now() })} />
               <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-black" onClick={() => onPlay(playlist)} aria-label="Play playlist">
@@ -86,7 +86,7 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
               const track = tracks.find((item) => item.id === trackId);
               if (!track) return null;
               return (
-                <article key={`${trackId}-${index}`} className="glass flex items-center gap-3 rounded-2xl p-3">
+                <article key={`${trackId}-${index}`} className="glass slide-up flex items-center gap-3 rounded-2xl p-3">
                   <button className="grid h-10 w-8 place-items-center rounded-xl bg-white/5" onClick={() => moveTrack(index, index === 0 ? 1 : -1)} aria-label="Reorder item">
                     <GripVertical size={18} />
                   </button>

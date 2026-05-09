@@ -24,7 +24,10 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
 
   async function saveMedia() {
     if (!file && !youtubeUrl.trim()) return onError("Choose an MP3 file or paste a YouTube link first.");
-    if (!file && youtubeUrl.trim()) return saveYoutubeReference();
+    if (!file && youtubeUrl.trim()) {
+      if (!isYoutubeUrl(youtubeUrl)) return onError("Paste a valid YouTube link or choose an MP3 file.");
+      return onError("YouTube-to-MP3 conversion is not available in PocketMP3. Upload an MP3 file you own for local playback.");
+    }
 
     if (!file) return;
     if (!isSupportedFile(file)) return onError("That file type is not supported here.");
@@ -66,35 +69,11 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
     }
   }
 
-  async function saveYoutubeReference() {
-    if (!isYoutubeUrl(youtubeUrl)) return onError("Paste a valid YouTube link.");
-    const stamp = now();
-    await onAdd({
-      id: id(),
-      kind: "youtube",
-      category,
-      title: title.trim() || "Saved YouTube link",
-      creator: creator.trim(),
-      sourceLink: youtubeUrl.trim(),
-      notes: notes.trim(),
-      playlistIds: playlistId ? [playlistId] : [],
-      lastPosition: 0,
-      addedAt: stamp,
-      updatedAt: stamp,
-    });
-    setYoutubeUrl("");
-    setCategory("song");
-    setTitle("");
-    setCreator("");
-    setNotes("");
-    setPlaylistId("");
-  }
-
   return (
-    <section className="space-y-5 pb-32">
+    <section className="page-enter space-y-5 pb-32">
       <div>
         <h1 className="text-3xl font-black">Add Media</h1>
-        <p className="mt-2 text-sm leading-6 text-white/55">Upload files you own, or save YouTube links as references.</p>
+        <p className="mt-2 text-sm leading-6 text-white/55">Upload MP3 files you own for local playback.</p>
       </div>
 
       <div className="glass space-y-4 rounded-3xl p-4">
@@ -110,10 +89,10 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
 
       <div className="glass space-y-3 rounded-3xl p-4">
         <div className="accent-text flex items-center gap-2 text-sm font-bold">
-          <Link size={17} /> YouTube reference
+          <Link size={17} /> Source link
         </div>
         <input className="accent-ring h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" placeholder="https://youtube.com/watch..." value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
-        <p className="text-xs leading-5 text-white/45">YouTube links are saved as references. Upload an owned MP3 file for locked-screen local playback.</p>
+        <p className="text-xs leading-5 text-white/45">Optional metadata only. PocketMP3 does not convert YouTube videos to MP3.</p>
       </div>
 
       <div className="space-y-3">

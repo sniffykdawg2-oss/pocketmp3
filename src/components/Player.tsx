@@ -44,7 +44,7 @@ export default function Player(props: PlayerProps) {
   const repeatIcon = repeat === "one" ? <Repeat1 size={21} /> : <Repeat size={21} />;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[#05070c] px-5 pb-5 pt-4">
+    <div className="page-enter fixed inset-0 z-40 flex flex-col bg-[#05070c] px-5 pb-5 pt-4">
       <div className="flex items-center justify-between pt-2">
         <button className="grid h-11 w-11 place-items-center rounded-full bg-white/10" onClick={onClose} aria-label="Close player">
           <X size={22} />
@@ -54,7 +54,7 @@ export default function Player(props: PlayerProps) {
       </div>
 
       <div className="flex flex-1 flex-col justify-center gap-8">
-        <div className="mx-auto grid aspect-square w-full max-w-[20rem] place-items-center overflow-hidden rounded-[2rem] bg-slate-900 shadow-glow">
+        <div className="pulse-soft mx-auto grid aspect-square w-full max-w-[20rem] place-items-center overflow-hidden rounded-[2rem] bg-slate-900 shadow-glow">
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-500/60 via-fuchsia-500/25 to-emerald-400/40">
             <span className="text-7xl font-black text-white/90">{track?.title?.[0]?.toUpperCase() ?? "P"}</span>
           </div>

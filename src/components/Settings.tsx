@@ -32,7 +32,7 @@ export default function Settings({ tracks, settings, onSettings, onClear, onExpo
   }
 
   return (
-    <section className="space-y-5 pb-32">
+    <section className="page-enter space-y-5 pb-32">
       <div>
         <h1 className="text-3xl font-black">Settings</h1>
         <p className="mt-2 text-sm text-white/55">Private, local, and tuned for your phone.</p>

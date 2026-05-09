@@ -290,33 +290,33 @@ export default function App() {
 
       <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-28 pt-5">
         {tab === "home" && (
-          <section className="space-y-5 pb-32">
+          <section className="page-enter space-y-5 pb-32">
             <div className="flex items-center justify-between">
               <div>
                 <p className="accent-gradient-text text-sm font-black uppercase">PocketMP3</p>
                 <h1 className="mt-1 text-4xl font-black tracking-normal">Your pocket player</h1>
               </div>
-              <button className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-black" onClick={() => setTab("add")} aria-label="Add media">
+              <button className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-black shadow-lg shadow-white/5" onClick={() => setTab("add")} aria-label="Add media">
                 <PlusCircle />
               </button>
             </div>
 
-            <div className="glass rounded-[2rem] p-5">
+            <div className="glass slide-up rounded-[2rem] p-5">
               <p className="text-sm font-bold text-white/55">Current track</p>
               <h2 className="mt-3 line-clamp-2 text-2xl font-black">{currentTrack?.title ?? "Nothing playing"}</h2>
               <p className="mt-2 text-sm text-white/55">{currentTrack?.creator || playback.queueName || "Upload a file to begin"}</p>
               <div className="mt-5 flex items-center gap-3">
-                <button className="h-16 flex-1 rounded-3xl bg-white text-lg font-black text-black" onClick={togglePlayback}>
+                <button className="h-16 flex-1 rounded-3xl bg-white text-lg font-black text-black shadow-lg shadow-white/5" onClick={togglePlayback}>
                   {playback.isPlaying ? "Pause" : "Play"}
                 </button>
-                <button className="accent-bg h-16 flex-1 rounded-3xl text-lg font-black" onClick={() => setTab("add")}>
+                <button className="accent-bg h-16 flex-1 rounded-3xl text-lg font-black shadow-glow" onClick={() => setTab("add")}>
                   Add
                 </button>
               </div>
               {currentTrack && <p className="mt-4 text-xs text-white/45">Resume at {formatTime(currentTrack.lastPosition)}</p>}
             </div>
 
-            <div className="glass rounded-3xl p-4">
+            <div className="glass slide-up rounded-3xl p-4">
               <h2 className="font-black">Locked-screen playback</h2>
               <p className="mt-2 text-sm leading-6 text-white/55">
                 Uploaded audio uses the normal HTML5 player and media controls. Your phone/browser decides whether it keeps playing after the screen locks.
@@ -403,7 +403,7 @@ export default function App() {
       )}
 
       {error && (
-        <div className="fixed left-3 right-3 top-4 z-[60] mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-red-300/20 bg-red-950/95 p-4 text-sm shadow-2xl">
+        <div className="slide-up fixed left-3 right-3 top-4 z-[60] mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-red-300/20 bg-red-950/95 p-4 text-sm shadow-2xl">
           <p className="min-w-0 flex-1">{error}</p>
           <button onClick={() => setError(null)} aria-label="Dismiss error">
             <X size={18} />

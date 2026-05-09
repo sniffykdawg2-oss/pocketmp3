@@ -23,7 +23,7 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
   }, [filter, query, tracks]);
 
   return (
-    <section className="space-y-5 pb-32">
+    <section className="page-enter space-y-5 pb-32">
       <div>
         <h1 className="text-3xl font-black">Library</h1>
         <p className="mt-2 text-sm text-white/55">{tracks.length} saved items</p>
@@ -44,7 +44,7 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
 
       <div className="space-y-3">
         {filtered.map((track) => (
-          <article key={track.id} className="glass rounded-3xl p-4">
+          <article key={track.id} className="glass slide-up rounded-3xl p-4">
             <div className="flex gap-3">
               <button className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-800" onClick={() => (track.kind === "youtube" ? window.open(track.sourceLink, "_blank") : onPlay(track.id))}>
                 {track.kind === "youtube" ? <ExternalLink size={22} /> : <Play size={22} />}
@@ -71,8 +71,8 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-end bg-black/70 p-3">
-          <div className="glass w-full rounded-3xl p-4">
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/70 p-3 backdrop-blur-sm">
+          <div className="glass slide-up w-full rounded-3xl p-4">
             <h2 className="text-xl font-black">Edit Metadata</h2>
             <div className="mt-4 space-y-3">
               <input className="h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
