@@ -1,6 +1,6 @@
 import { Download, HardDrive, Shield, Trash2, Upload } from "lucide-react";
 import type { Accent, MetadataExport, Settings as SettingsType, Track } from "../lib/types";
-import { estimateStorage, formatBytes } from "../lib/storage";
+import { estimateStorage, formatBytes, requestPersistentStorage } from "../lib/storage";
 
 interface SettingsProps {
   tracks: Track[];
@@ -13,6 +13,8 @@ interface SettingsProps {
 }
 
 export default function Settings({ tracks, settings, onSettings, onClear, onExport, onImport, onError }: SettingsProps) {
+  const canPersistStorage = Boolean(navigator.storage && "persist" in navigator.storage);
+  const storageLabel = canPersistStorage ? "Request persistent storage" : "Persistent storage unavailable";
   const accentSwatches: Record<Accent, string> = {
     blue: "bg-sky-400",
     purple: "bg-fuchsia-400",
@@ -46,6 +48,16 @@ export default function Settings({ tracks, settings, onSettings, onClear, onExpo
             <p className="text-sm text-white/55">Your files stay on this device.</p>
           </div>
         </div>
+        <button
+          className="mt-4 h-11 w-full rounded-2xl bg-white/10 font-bold"
+          onClick={async () => {
+            const granted = await requestPersistentStorage();
+            onError(granted ? "Persistent storage is enabled for PocketMP3 on this device." : "This browser did not grant persistent storage.");
+          }}
+          disabled={!canPersistStorage}
+        >
+          {storageLabel}
+        </button>
       </div>
 
       <div className="glass rounded-3xl p-5">

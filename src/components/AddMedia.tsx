@@ -1,7 +1,7 @@
 import { FileAudio, Link, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
-import { isSupportedFile, isYoutubeUrl, maxFileSize, readDuration } from "../lib/storage";
+import { copyFileToStoredBlob, isSupportedFile, isYoutubeUrl, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
 
 interface AddMediaProps {
   playlists: Playlist[];
@@ -35,7 +35,9 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
 
     setSaving(true);
     try {
-      const duration = await readDuration(file);
+      const storedFile = await copyFileToStoredBlob(file);
+      await requestPersistentStorage();
+      const duration = await readDuration(storedFile);
       const stamp = now();
       await onAdd({
         id: id(),
@@ -45,7 +47,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
         creator: creator.trim(),
         notes: notes.trim(),
         sourceLink: youtubeUrl.trim() || undefined,
-        file,
+        file: storedFile,
         fileName: file.name,
         mimeType: file.type,
         size: file.size,

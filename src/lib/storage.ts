@@ -13,6 +13,21 @@ export function isSupportedFile(file: File) {
   return supportedTypes.includes(file.type) || supportedExtensions.some((ext) => lower.endsWith(ext));
 }
 
+export async function copyFileToStoredBlob(file: File) {
+  const bytes = await file.arrayBuffer();
+  return new Blob([bytes], { type: file.type || "audio/mpeg" });
+}
+
+export async function requestPersistentStorage() {
+  if (!navigator.storage?.persist) return false;
+  try {
+    if (await navigator.storage.persisted?.()) return true;
+    return navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
 export function formatTime(seconds = 0) {
   if (!Number.isFinite(seconds)) return "0:00";
   const safe = Math.max(0, Math.floor(seconds));
