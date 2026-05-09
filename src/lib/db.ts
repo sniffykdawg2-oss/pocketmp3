@@ -61,6 +61,13 @@ export async function saveTrack(track: Track) {
   await db.put("tracks", storedTrack);
 }
 
+export async function updateTrackFields(id: string, fields: Partial<Omit<Track, "id" | "coverUrl">>) {
+  const db = await getDb();
+  const track = await db.get("tracks", id);
+  if (!track) return;
+  await db.put("tracks", { ...track, ...fields, id });
+}
+
 export async function deleteTrack(id: string) {
   const db = await getDb();
   await db.delete("tracks", id);
