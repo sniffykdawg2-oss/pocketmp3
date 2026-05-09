@@ -1,5 +1,5 @@
-import { ExternalLink, Home, Library as LibraryIcon, ListMusic, PlusCircle, Settings as SettingsIcon, X } from "lucide-react";
-import type { CSSProperties } from "react";
+import { Home, Library as LibraryIcon, ListMusic, PlusCircle, Settings as SettingsIcon, X, Youtube } from "lucide-react";
+import type { CSSProperties, SyntheticEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AddMedia from "./components/AddMedia";
 import Library from "./components/Library";
@@ -7,12 +7,13 @@ import MiniPlayer from "./components/MiniPlayer";
 import Player from "./components/Player";
 import Playlists from "./components/Playlists";
 import Settings from "./components/Settings";
-import { clearAllData, defaultSettings, deletePlaylist, deleteTrack, getPlaylists, getSettings, getTracks, savePlaylist, saveSettings, saveTrack, updateTrackFields } from "./lib/db";
+import YouTubeConvert from "./components/YouTubeConvert";
+import { clearAllData, defaultSettings, deletePlaylist, deleteTrack, getPlaylists, getSettings, getTrack, getTracks, savePlaylist, saveSettings, saveTrack, updateTrackFields } from "./lib/db";
 import { setupMediaSession } from "./lib/mediaSession";
-import { downloadJson, exportMetadata, extractMp3Cover, formatTime } from "./lib/storage";
+import { createPlaybackBlob, downloadJson, exportMetadata, extractMp3Cover, formatTime } from "./lib/storage";
 import type { MetadataExport, PlaybackState, Playlist, Settings as SettingsType, Track } from "./lib/types";
 
-type Tab = "home" | "library" | "playlists" | "add" | "settings";
+type Tab = "home" | "library" | "playlists" | "youtube" | "add" | "settings";
 
 const initialPlayback: PlaybackState = {
   queue: [],
@@ -56,7 +57,8 @@ const accentVars: Record<SettingsType["accent"], CSSProperties> = {
 export default function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioUrlRef = useRef<string | null>(null);
-  const loadedTrackIdRef = useRef<string | null>(null);
+  const playbackRequestRef = useRef(0);
+  const pendingSeekRef = useRef(0);
   const coverUrlCacheRef = useRef<Map<string, string>>(new Map());
   const coverBackfillRef = useRef<Set<string>>(new Set());
   const lastPersistedSecondRef = useRef<Record<string, number>>({});
@@ -71,16 +73,23 @@ export default function App() {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const playableTracks = useMemo(() => tracks.filter((track) => track.file), [tracks]);
+  const playableTracks = useMemo(() => tracks.filter((track) => track.file || track.fileData), [tracks]);
   const currentTrack = tracks.find((track) => track.id === playback.currentTrackId);
 
-  function clearLoadedAudio() {
-    audioRef.current?.pause();
-    audioRef.current?.removeAttribute("src");
-    audioRef.current?.load();
-    loadedTrackIdRef.current = null;
-    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+  function resetAudioElement() {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
+    if (audioUrlRef.current) {
+      const previousUrl = audioUrlRef.current;
+      window.setTimeout(() => URL.revokeObjectURL(previousUrl), 1000);
+    }
     audioUrlRef.current = null;
+    setCurrentTime(0);
+    setDuration(0);
   }
 
   async function refresh() {
@@ -98,6 +107,7 @@ export default function App() {
       setTracks(hydrated);
       setPlaylists(nextPlaylists.sort((a, b) => b.updatedAt - a.updatedAt));
       setSettingsState(nextSettings);
+      void migrateBlobTracksToBytes(nextTracks);
       void backfillMissingCovers(nextTracks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "IndexedDB unavailable. PocketMP3 cannot load local storage.");
@@ -105,14 +115,19 @@ export default function App() {
   }
 
   async function backfillMissingCovers(items: Track[]) {
-    const missing = items.filter((track) => track.file && !track.cover && !coverBackfillRef.current.has(track.id));
+    const missing = items.filter((track) => (track.file || track.fileData) && !track.cover && !coverBackfillRef.current.has(track.id));
     if (!missing.length) return;
 
     let changed = false;
     for (const track of missing) {
-      if (!track.file) continue;
+      if (!track.file && !track.fileData) continue;
       coverBackfillRef.current.add(track.id);
-      const cover = await extractMp3Cover(track.file);
+      let cover: Blob | undefined;
+      try {
+        cover = await extractMp3Cover(await createPlaybackBlob(track));
+      } catch {
+        continue;
+      }
       if (cover) {
         await saveTrack({ ...track, cover, updatedAt: Date.now() });
         changed = true;
@@ -121,10 +136,26 @@ export default function App() {
     if (changed) await refresh();
   }
 
+  async function migrateBlobTracksToBytes(items: Track[]) {
+    let changed = false;
+    for (const track of items) {
+      if (track.fileData || !track.file || coverBackfillRef.current.has(`bytes:${track.id}`)) continue;
+      coverBackfillRef.current.add(`bytes:${track.id}`);
+      try {
+        await saveTrack({ ...track, fileData: await track.file.arrayBuffer(), updatedAt: Date.now() });
+        changed = true;
+      } catch {
+        // Older Safari-created Blob records can become unreadable; those need to be re-added.
+      }
+    }
+    if (changed) await refresh();
+  }
+
   useEffect(() => {
     refresh();
     return () => {
-      clearLoadedAudio();
+      playbackRequestRef.current += 1;
+      resetAudioElement();
       coverUrlCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
       coverUrlCacheRef.current.clear();
     };
@@ -173,7 +204,7 @@ export default function App() {
     );
     if (playback.currentTrackId === trackId) {
       pause();
-      clearLoadedAudio();
+      resetAudioElement();
       setPlayback((state) => ({ ...state, currentTrackId: undefined, isPlaying: false }));
     }
     await refresh();
@@ -203,65 +234,60 @@ export default function App() {
     setTab("playlists");
   }
 
-  function makePlayableBlob(file: Blob, fallbackType?: string) {
-    return file.slice(0, file.size, fallbackType || file.type || "audio/mpeg");
-  }
-
-  function loadAudioTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
-    const track = tracks.find((item) => item.id === trackId);
+  async function startTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
     const audio = audioRef.current;
-    if (!track?.file || !audio) return false;
-    const playableFile = makePlayableBlob(track.file, track.mimeType);
+    if (!audio) return false;
 
-    clearLoadedAudio();
-    const src = URL.createObjectURL(playableFile);
-    audioUrlRef.current = src;
-    loadedTrackIdRef.current = trackId;
-    audio.src = src;
-    audio.autoplay = shouldPlay;
-    audio.playbackRate = playback.speed;
-    setCurrentTime(startAt);
-    setDuration(track.duration ?? 0);
+    const requestId = playbackRequestRef.current + 1;
+    playbackRequestRef.current = requestId;
+    pendingSeekRef.current = Math.max(0, startAt);
+    resetAudioElement();
 
-    const applyStart = () => {
-      try {
-        audio.currentTime = startAt;
-      } catch {
-        // Some browsers only allow seeking after metadata is ready.
+    try {
+      const storedTrack = await getTrack(trackId);
+      if (!storedTrack?.file && !storedTrack?.fileData) {
+        showError("This track is missing its saved MP3 data. Delete it and add it again.");
+        setPlayback((state) => (state.currentTrackId === trackId ? { ...state, isPlaying: false } : state));
+        return false;
       }
-    };
 
-    const tryPlay = () => {
-      if (!shouldPlay) return;
-      audio.play().catch(() => {
-        const retry = () => {
-          audio.play().catch(() => {
-            if (showBlockedMessage) showError("Playback was blocked by the browser. Tap play again.");
-          });
-        };
-        audio.addEventListener("canplay", retry, { once: true });
-      });
-    };
+      setDuration(storedTrack.duration ?? 0);
+      const playbackBlob = await createPlaybackBlob(storedTrack);
+      if (playbackRequestRef.current !== requestId || !audioRef.current) return false;
 
-    audio.addEventListener("loadedmetadata", applyStart, { once: true });
-    audio.addEventListener("canplay", applyStart, { once: true });
-    audio.addEventListener("canplay", tryPlay, { once: true });
-    audio.load();
-    applyStart();
-    tryPlay();
-    return true;
+      const src = URL.createObjectURL(playbackBlob);
+      audioUrlRef.current = src;
+      audio.src = src;
+      audio.preload = "auto";
+      audio.playbackRate = playback.speed;
+      audio.load();
+
+      if (shouldPlay) {
+        audio.play().catch(() => {
+          if (showBlockedMessage) showError("Playback was blocked by the browser. Tap play again.");
+          setPlayback((state) => (state.currentTrackId === trackId ? { ...state, isPlaying: false } : state));
+        });
+      }
+
+      return true;
+    } catch (error) {
+      const isMissingBlob = error instanceof DOMException && error.name === "NotFoundError";
+      showError(isMissingBlob ? "This saved MP3 was corrupted by browser storage. Delete it and add it again." : "Could not load this MP3. Delete it and add it again.");
+      setPlayback((state) => (state.currentTrackId === trackId ? { ...state, isPlaying: false } : state));
+      return false;
+    }
   }
 
   function queueAndPlay(ids: string[], startId?: string, queueName?: string, startAt = 0) {
-    const playableIds = ids.filter((id) => tracks.find((track) => track.id === id && track.file));
+    const playableIds = ids.filter((id) => tracks.find((track) => track.id === id && (track.file || track.fileData)));
     if (!playableIds.length) {
       showError("This playlist has no saved MP3 files yet.");
       return;
     }
     const currentTrackId = startId && playableIds.includes(startId) ? startId : playableIds[0];
-    loadAudioTrack(currentTrackId, startAt, true, true);
     setPlayback((state) => ({ ...state, queue: playableIds, queueName, currentTrackId, isPlaying: true }));
     setPlayerOpen(true);
+    void startTrack(currentTrackId, startAt, true, true);
   }
 
   function playTrack(trackId: string) {
@@ -276,24 +302,22 @@ export default function App() {
   function play() {
     const audio = audioRef.current;
     if (!audio) return;
-    const needsFreshSource =
-      currentTrack?.file &&
-      (loadedTrackIdRef.current !== currentTrack.id || !audio.currentSrc || audio.error || audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE);
 
-    if (needsFreshSource && currentTrack) {
-      const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? 0 : 0;
-      loadAudioTrack(currentTrack.id, startAt, true, true);
-      setPlayback((state) => ({ ...state, isPlaying: true }));
+    if (!currentTrack?.file && !currentTrack?.fileData) {
+      showError("Choose a saved MP3 and try again.");
       return;
     }
+
+    if (!audio.currentSrc || audio.error || audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+      const startAt = Math.min(currentTrack.lastPosition ?? 0, currentTrack.duration ?? currentTrack.lastPosition ?? 0);
+      setPlayback((state) => ({ ...state, isPlaying: true }));
+      void startTrack(currentTrack.id, startAt, true, true);
+      return;
+    }
+
     audio.play().then(() => setPlayback((state) => ({ ...state, isPlaying: true }))).catch(() => {
-      if (currentTrack?.file) {
-        const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? currentTime : 0;
-        loadAudioTrack(currentTrack.id, startAt, true, true);
-        setPlayback((state) => ({ ...state, isPlaying: true }));
-        return;
-      }
       showError("Playback could not start. Choose a saved MP3 and try again.");
+      setPlayback((state) => ({ ...state, isPlaying: false }));
     });
   }
 
@@ -321,25 +345,60 @@ export default function App() {
     const index = queue.indexOf(playback.currentTrackId);
     const nextIndex = playback.shuffle ? Math.floor(Math.random() * queue.length) : index + 1;
     const nextId = nextIndex >= queue.length ? queue[0] : queue[nextIndex];
-    loadAudioTrack(nextId, 0, true, false);
-    if (nextIndex >= queue.length) {
-      setPlayback((state) => ({ ...state, currentTrackId: queue[0], isPlaying: true }));
-      return;
-    }
-    setPlayback((state) => ({ ...state, currentTrackId: queue[nextIndex], isPlaying: true }));
+    setPlayback((state) => ({ ...state, currentTrackId: nextId, isPlaying: true }));
+    void startTrack(nextId, 0, true, false);
   }
 
   function previousTrack() {
     if (!playback.queue.length || !playback.currentTrackId) return;
     const index = playback.queue.indexOf(playback.currentTrackId);
     const previousId = playback.queue[Math.max(0, index - 1)];
-    loadAudioTrack(previousId, 0, true, false);
     setPlayback((state) => ({ ...state, currentTrackId: previousId, isPlaying: true }));
+    void startTrack(previousId, 0, true, false);
+  }
+
+  function handleTrackEnded(event: SyntheticEvent<HTMLAudioElement>) {
+    const audio = event.currentTarget;
+    const expectedDuration = currentTrack?.duration ?? 0;
+    const endedEarly = expectedDuration > 30 && audio.currentTime < expectedDuration - 5;
+
+    if (endedEarly) {
+      setPlayback((state) => ({ ...state, isPlaying: false }));
+      showError("Playback stopped early because the browser misread this MP3. Delete it and add it again with the new uploader.");
+      return;
+    }
+
+    nextTrack();
+  }
+
+  function handleAudioMetadata(event: SyntheticEvent<HTMLAudioElement>) {
+    const audio = event.currentTarget;
+    const metadataDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    const nextDuration = currentTrack?.duration && currentTrack.duration > 0 ? currentTrack.duration : metadataDuration;
+    setDuration(nextDuration);
+
+    const startAt = pendingSeekRef.current;
+    if (startAt > 0) {
+      try {
+        audio.currentTime = Math.min(startAt, metadataDuration || nextDuration || startAt);
+        setCurrentTime(audio.currentTime);
+      } catch {
+        // The seek can be retried from the normal controls once the browser is ready.
+      }
+    }
   }
 
   function seek(time: number) {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.max(0, Math.min(time, audioRef.current.duration || time));
+    const audio = audioRef.current;
+    if (!audio) return;
+    const maxTime = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : currentTrack?.duration || time;
+    const nextTime = Math.max(0, Math.min(time, maxTime));
+    if (audio.readyState < HTMLMediaElement.HAVE_METADATA) {
+      pendingSeekRef.current = nextTime;
+      return;
+    }
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
   }
 
   function skip(delta: number) {
@@ -370,7 +429,7 @@ export default function App() {
   async function clearData() {
     if (!confirm("Clear all PocketMP3 local data on this device?")) return;
     pause();
-    clearLoadedAudio();
+    resetAudioElement();
     await clearAllData();
     setPlayback(initialPlayback);
     await refresh();
@@ -380,6 +439,7 @@ export default function App() {
     ["home", Home, "Home"],
     ["library", LibraryIcon, "Library"],
     ["playlists", ListMusic, "Playlists"],
+    ["youtube", Youtube, "YouTube"],
     ["add", PlusCircle, "Add"],
     ["settings", SettingsIcon, "Settings"],
   ] as const;
@@ -397,8 +457,8 @@ export default function App() {
           setCurrentTime(time);
           if (Math.floor(time) % 8 === 0) persistPosition(time);
         }}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || currentTrack?.duration || 0)}
-        onEnded={nextTrack}
+        onLoadedMetadata={handleAudioMetadata}
+        onEnded={handleTrackEnded}
       />
 
       <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-28 pt-5">
@@ -429,13 +489,13 @@ export default function App() {
               {currentTrack && <p className="mt-4 text-xs text-white/45">Resume at {formatTime(currentTrack.lastPosition)}</p>}
             </div>
 
-            <a className="glass slide-up flex items-center justify-between gap-4 rounded-3xl p-4" href="https://cnvmp3.com/v54" target="_blank" rel="noreferrer">
+            <button className="glass slide-up flex w-full items-center justify-between gap-4 rounded-3xl p-4 text-left" onClick={() => setTab("youtube")}>
               <span>
-                <span className="block font-black">MP3 converter</span>
-                <span className="mt-2 block text-sm leading-6 text-white/55">Open cnvmp3.com/v54</span>
+                <span className="block font-black">YouTube converter</span>
+                <span className="mt-2 block text-sm leading-6 text-white/55">Convert your channel videos to MP3</span>
               </span>
-              <ExternalLink className="accent-text shrink-0" size={22} />
-            </a>
+              <Youtube className="accent-text shrink-0" size={22} />
+            </button>
 
             <div>
               <h2 className="mb-3 text-lg font-black">Recent Tracks</h2>
@@ -469,6 +529,7 @@ export default function App() {
         )}
 
         {tab === "library" && <Library tracks={tracks} onPlay={playTrack} onDelete={removeTrack} onUpdate={updateTrack} />}
+        {tab === "youtube" && <YouTubeConvert playlists={playlists} onAdd={addTrack} onError={showError} />}
         {tab === "playlists" && (
           <Playlists
             playlists={playlists}
@@ -498,7 +559,7 @@ export default function App() {
       <MiniPlayer track={currentTrack} isPlaying={playback.isPlaying} onOpen={() => setPlayerOpen(true)} onToggle={togglePlayback} />
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-black/80 px-2 pt-2 backdrop-blur-xl safe-bottom">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+        <div className="mx-auto grid max-w-md grid-cols-6 gap-1">
           {nav.map(([key, Icon, label]) => (
             <button key={key} className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold ${tab === key ? "accent-bg" : "text-white/55"}`} onClick={() => setTab(key)}>
               <Icon size={20} />

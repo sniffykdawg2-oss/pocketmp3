@@ -58,6 +58,12 @@ export async function getTrack(id: string) {
 export async function saveTrack(track: Track) {
   const db = await getDb();
   const { coverUrl: _coverUrl, ...storedTrack } = track;
+  if (!storedTrack.fileData && storedTrack.file) {
+    storedTrack.fileData = await storedTrack.file.arrayBuffer();
+  }
+  if (storedTrack.fileData) {
+    delete storedTrack.file;
+  }
   await db.put("tracks", storedTrack);
 }
 

@@ -13,9 +13,22 @@ export function isSupportedFile(file: File) {
   return supportedTypes.includes(file.type) || supportedExtensions.some((ext) => lower.endsWith(ext));
 }
 
-export async function copyFileToStoredBlob(file: File) {
+export async function copyFileToStoredFile(file: File) {
   const bytes = await file.arrayBuffer();
-  return new Blob([bytes], { type: file.type || "audio/mpeg" });
+  return new File([bytes], file.name, {
+    type: file.type || "audio/mpeg",
+    lastModified: Date.now(),
+  });
+}
+
+export async function fileToBytes(file: Blob) {
+  return file.arrayBuffer();
+}
+
+export async function createPlaybackBlob(track: Pick<Track, "file" | "fileData">) {
+  if (track.fileData) return new Blob([track.fileData], { type: "audio/mpeg" });
+  if (track.file) return new Blob([await track.file.arrayBuffer()], { type: "audio/mpeg" });
+  throw new Error("This track does not have saved MP3 data.");
 }
 
 export async function extractMp3Cover(file: Blob): Promise<Blob | undefined> {
@@ -105,7 +118,7 @@ export function estimateStorage(tracks: Track[]) {
 export function exportMetadata(tracks: Track[], playlists: Playlist[], settings: Settings): MetadataExport {
   return {
     exportedAt: new Date().toISOString(),
-    tracks: tracks.map(({ file: _file, cover: _cover, coverUrl: _coverUrl, ...track }) => track),
+    tracks: tracks.map(({ file: _file, fileData: _fileData, cover: _cover, coverUrl: _coverUrl, ...track }) => track),
     playlists,
     settings,
   };

@@ -1,7 +1,7 @@
 import { FileAudio, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
-import { copyFileToStoredBlob, extractMp3Cover, isSupportedFile, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
+import { copyFileToStoredFile, extractMp3Cover, fileToBytes, isSupportedFile, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
 
 interface AddMediaProps {
   playlists: Playlist[];
@@ -22,26 +22,28 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
   const [saving, setSaving] = useState(false);
 
   async function saveMedia() {
-    if (!file) return onError("Choose an MP3 file first.");
-    if (!isSupportedFile(file)) return onError("That file type is not supported here.");
-    if (file.size > maxFileSize) return onError("That file is too large for comfortable browser storage.");
+    const selected = file;
+    if (!selected) return onError("Choose an MP3 file first.");
+    if (!isSupportedFile(selected)) return onError("That file type is not supported here.");
+    if (selected.size > maxFileSize) return onError("That file is too large for comfortable browser storage.");
 
     setSaving(true);
     try {
-      const storedFile = await copyFileToStoredBlob(file);
       await requestPersistentStorage();
-      const [duration, cover] = await Promise.all([readDuration(storedFile), extractMp3Cover(storedFile)]);
+      const storedFile = await copyFileToStoredFile(selected);
+      const [duration, cover, fileData] = await Promise.all([readDuration(storedFile), extractMp3Cover(storedFile), fileToBytes(storedFile)]);
       const stamp = now();
       await onAdd({
         id: id(),
         category,
-        title: title.trim() || file.name.replace(/\.[^/.]+$/, ""),
+        title: title.trim() || selected.name.replace(/\.[^/.]+$/, ""),
         creator: creator.trim(),
         notes: notes.trim(),
         file: storedFile,
-        fileName: file.name,
-        mimeType: file.type,
-        size: file.size,
+        fileData,
+        fileName: selected.name,
+        mimeType: storedFile.type || "audio/mpeg",
+        size: storedFile.size,
         duration,
         cover,
         playlistIds: playlistId ? [playlistId] : [],
@@ -55,8 +57,8 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
       setCreator("");
       setNotes("");
       setPlaylistId("");
-    } catch {
-      onError("Could not save this file. Storage may be full or unavailable.");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Could not save this file. Storage may be full or unavailable.");
     } finally {
       setSaving(false);
     }

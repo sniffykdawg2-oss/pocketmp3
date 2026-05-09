@@ -12,6 +12,7 @@ export interface Track {
   cover?: Blob;
   coverUrl?: string;
   file?: Blob;
+  fileData?: ArrayBuffer;
   fileName?: string;
   mimeType?: string;
   size?: number;
