@@ -1,8 +1,6 @@
 # PocketMP3
 
-PocketMP3 is a mobile-first personal web app/PWA for storing and playing your own local audio files, organizing playlists, and saving YouTube links as references.
-
-YouTube links are saved as metadata and can be opened on YouTube. The browser-only app does not download or convert YouTube videos into MP3 files because that requires a converter and may violate YouTube/platform terms depending on the content and usage.
+PocketMP3 is a mobile-first personal web app/PWA for storing and playing your own local MP3 files and organizing playlists.
 
 ## Setup
 

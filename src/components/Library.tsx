@@ -1,4 +1,4 @@
-import { Edit3, ExternalLink, Play, Search, Trash2 } from "lucide-react";
+import { Edit3, Play, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { MediaCategory, Track } from "../lib/types";
 import { formatBytes, formatTime } from "../lib/storage";
@@ -46,14 +46,14 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
         {filtered.map((track) => (
           <article key={track.id} className="glass slide-up rounded-3xl p-4">
             <div className="flex gap-3">
-              <button className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-800" onClick={() => (track.kind === "youtube" ? window.open(track.sourceLink, "_blank") : onPlay(track.id))}>
-                {track.kind === "youtube" ? <ExternalLink size={22} /> : <Play size={22} />}
+              <button className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-800" onClick={() => onPlay(track.id)}>
+                <Play size={22} />
               </button>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-bold">{track.title}</h2>
                 <p className="truncate text-sm text-white/55">{track.creator || "Unknown creator"}</p>
                 <p className="mt-1 text-xs text-white/40">
-                  {track.kind === "youtube" ? `YouTube reference • ${track.category}` : `${track.category} • ${formatTime(track.duration)} • ${formatBytes(track.size)}`}
+                  {track.category} • {formatTime(track.duration)} • {formatBytes(track.size)}
                 </p>
               </div>
               <div className="flex gap-1">
@@ -65,7 +65,6 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
                 </button>
               </div>
             </div>
-            {track.kind === "youtube" && <p className="mt-3 rounded-2xl bg-black/25 px-3 py-2 text-xs text-white/55">Cannot play locally. Open on YouTube.</p>}
           </article>
         ))}
       </div>

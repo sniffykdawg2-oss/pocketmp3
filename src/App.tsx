@@ -66,7 +66,7 @@ export default function App() {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const playableTracks = useMemo(() => tracks.filter((track) => track.kind !== "youtube" && track.file), [tracks]);
+  const playableTracks = useMemo(() => tracks.filter((track) => track.file), [tracks]);
   const currentTrack = tracks.find((track) => track.id === playback.currentTrackId);
 
   async function refresh() {
@@ -175,9 +175,9 @@ export default function App() {
   }
 
   function queueAndPlay(ids: string[], startId?: string, queueName?: string) {
-    const playableIds = ids.filter((id) => tracks.find((track) => track.id === id && track.kind !== "youtube" && track.file));
+    const playableIds = ids.filter((id) => tracks.find((track) => track.id === id && track.file));
     if (!playableIds.length) {
-      showError("This playlist has no local playable media. YouTube references open on YouTube instead.");
+      showError("This playlist has no saved MP3 files yet.");
       return;
     }
     const currentTrackId = startId && playableIds.includes(startId) ? startId : playableIds[0];
@@ -246,7 +246,7 @@ export default function App() {
   }
 
   async function persistPosition(time: number) {
-    if (!currentTrack || currentTrack.kind === "youtube") return;
+    if (!currentTrack) return;
     const next = { ...currentTrack, lastPosition: time, updatedAt: Date.now() };
     await saveTrack(next);
     setTracks((items) => items.map((item) => (item.id === next.id ? { ...item, lastPosition: time } : item)));
@@ -337,11 +337,11 @@ export default function App() {
               <h2 className="mb-3 text-lg font-black">Recent Tracks</h2>
               <div className="space-y-2">
                 {recentTracks.map((track) => (
-                  <button key={track.id} className="flex w-full items-center gap-3 rounded-2xl bg-white/10 p-3 text-left" onClick={() => (track.kind === "youtube" ? window.open(track.sourceLink, "_blank") : playTrack(track.id))}>
+                  <button key={track.id} className="flex w-full items-center gap-3 rounded-2xl bg-white/10 p-3 text-left" onClick={() => playTrack(track.id)}>
                     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10">{track.title[0]}</div>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold">{track.title}</span>
-                      <span className="block truncate text-xs text-white/45">{track.kind === "youtube" ? "Open on YouTube" : track.creator || "Local media"}</span>
+                      <span className="block truncate text-xs text-white/45">{track.creator || "Local media"}</span>
                     </span>
                   </button>
                 ))}

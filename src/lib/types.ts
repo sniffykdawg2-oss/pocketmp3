@@ -1,4 +1,3 @@
-export type MediaKind = "audio" | "youtube";
 export type MediaCategory = "podcast" | "song" | "other";
 export type Accent = "blue" | "purple" | "green" | "red";
 export type SortMode = "recent" | "alpha";
@@ -6,11 +5,9 @@ export type RepeatMode = "off" | "one" | "playlist";
 
 export interface Track {
   id: string;
-  kind: MediaKind;
   category: MediaCategory;
   title: string;
   creator: string;
-  sourceLink?: string;
   notes?: string;
   file?: Blob;
   fileName?: string;

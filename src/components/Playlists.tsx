@@ -79,7 +79,7 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
                 <Trash2 size={18} />
               </button>
             </div>
-            <p className="mt-2 text-xs text-white/45">Playback uses playable local media and skips YouTube references.</p>
+            <p className="mt-2 text-xs text-white/45">Playback uses the MP3 files saved on this device.</p>
           </div>
 
           <div className="space-y-3">
@@ -94,7 +94,7 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
                     </button>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold">{track.title}</p>
-                      <p className="truncate text-xs text-white/50">{track.kind === "youtube" ? "Open on YouTube" : track.creator || "Local media"}</p>
+                      <p className="truncate text-xs text-white/50">{track.creator || "Local media"}</p>
                     </div>
                     <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => toggleTrack(track.id)} aria-label="Remove from playlist">
                       <Trash2 size={16} />
@@ -119,7 +119,7 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
                 <button key={track.id} className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left ${playlist.trackIds.includes(track.id) ? "accent-bg-soft" : "bg-white/10"}`} onClick={() => toggleTrack(track.id)}>
                   <span className="min-w-0">
                     <span className="block truncate font-bold">{track.title}</span>
-                    <span className="text-xs capitalize text-white/45">{track.kind === "youtube" ? "YouTube reference" : track.category}</span>
+                    <span className="text-xs capitalize text-white/45">{track.category}</span>
                   </span>
                   <span className="text-sm font-black">{playlist.trackIds.includes(track.id) ? "Added" : "Add"}</span>
                 </button>

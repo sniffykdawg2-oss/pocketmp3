@@ -1,7 +1,7 @@
-import { FileAudio, Link, Plus } from "lucide-react";
+import { FileAudio, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
-import { copyFileToStoredBlob, isSupportedFile, isYoutubeUrl, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
+import { copyFileToStoredBlob, isSupportedFile, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
 
 interface AddMediaProps {
   playlists: Playlist[];
@@ -14,7 +14,6 @@ const id = () => crypto.randomUUID();
 
 export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [category, setCategory] = useState<Track["category"]>("song");
   const [title, setTitle] = useState("");
   const [creator, setCreator] = useState("");
@@ -23,13 +22,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
   const [saving, setSaving] = useState(false);
 
   async function saveMedia() {
-    if (!file && !youtubeUrl.trim()) return onError("Choose an MP3 file or paste a YouTube link first.");
-    if (!file && youtubeUrl.trim()) {
-      if (!isYoutubeUrl(youtubeUrl)) return onError("Paste a valid YouTube link or choose an MP3 file.");
-      return onError("YouTube-to-MP3 conversion is not available in PocketMP3. Upload an MP3 file you own for local playback.");
-    }
-
-    if (!file) return;
+    if (!file) return onError("Choose an MP3 file first.");
     if (!isSupportedFile(file)) return onError("That file type is not supported here.");
     if (file.size > maxFileSize) return onError("That file is too large for comfortable browser storage.");
 
@@ -41,12 +34,10 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
       const stamp = now();
       await onAdd({
         id: id(),
-        kind: "audio",
         category,
         title: title.trim() || file.name.replace(/\.[^/.]+$/, ""),
         creator: creator.trim(),
         notes: notes.trim(),
-        sourceLink: youtubeUrl.trim() || undefined,
         file: storedFile,
         fileName: file.name,
         mimeType: file.type,
@@ -62,7 +53,6 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
       setTitle("");
       setCreator("");
       setNotes("");
-      setYoutubeUrl("");
       setPlaylistId("");
     } catch {
       onError("Could not save this file. Storage may be full or unavailable.");
@@ -87,14 +77,6 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
           </span>
           <input className="hidden" type="file" accept=".mp3,audio/mpeg,audio/mp3" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
-      </div>
-
-      <div className="glass space-y-3 rounded-3xl p-4">
-        <div className="accent-text flex items-center gap-2 text-sm font-bold">
-          <Link size={17} /> Source link
-        </div>
-        <input className="accent-ring h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" placeholder="https://youtube.com/watch..." value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
-        <p className="text-xs leading-5 text-white/45">Optional metadata only. PocketMP3 does not convert YouTube videos to MP3.</p>
       </div>
 
       <div className="space-y-3">

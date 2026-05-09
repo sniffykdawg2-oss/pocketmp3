@@ -101,13 +101,6 @@ export default function Settings({ tracks, settings, onSettings, onClear, onExpo
         </label>
       </div>
 
-      <div className="glass rounded-3xl p-5">
-        <h2 className="font-black">YouTube links</h2>
-        <p className="mt-2 text-sm leading-6 text-white/55">
-          YouTube items are saved as references and cannot be played locally unless you upload a file you own. Platform rules and browser limits control what can be downloaded or played in the background.
-        </p>
-      </div>
-
       <button className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-red-500/15 font-black text-red-100" onClick={onClear}>
         <Trash2 size={19} /> Clear all local data
       </button>

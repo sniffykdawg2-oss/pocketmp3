@@ -74,15 +74,6 @@ export async function readDuration(file: Blob): Promise<number | undefined> {
   });
 }
 
-export function isYoutubeUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
-
 export function downloadJson(filename: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
