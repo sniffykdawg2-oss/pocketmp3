@@ -1,4 +1,4 @@
-import { Home, Library as LibraryIcon, ListMusic, PlusCircle, Settings as SettingsIcon, X } from "lucide-react";
+import { ExternalLink, Home, Library as LibraryIcon, ListMusic, PlusCircle, Settings as SettingsIcon, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AddMedia from "./components/AddMedia";
@@ -316,12 +316,13 @@ export default function App() {
               {currentTrack && <p className="mt-4 text-xs text-white/45">Resume at {formatTime(currentTrack.lastPosition)}</p>}
             </div>
 
-            <div className="glass slide-up rounded-3xl p-4">
-              <h2 className="font-black">Locked-screen playback</h2>
-              <p className="mt-2 text-sm leading-6 text-white/55">
-                Uploaded audio uses the normal HTML5 player and media controls. Your phone/browser decides whether it keeps playing after the screen locks.
-              </p>
-            </div>
+            <a className="glass slide-up flex items-center justify-between gap-4 rounded-3xl p-4" href="https://cnvmp3.com/v54" target="_blank" rel="noreferrer">
+              <span>
+                <span className="block font-black">MP3 converter</span>
+                <span className="mt-2 block text-sm leading-6 text-white/55">Open cnvmp3.com/v54</span>
+              </span>
+              <ExternalLink className="accent-text shrink-0" size={22} />
+            </a>
 
             <div>
               <h2 className="mb-3 text-lg font-black">Recent Tracks</h2>
