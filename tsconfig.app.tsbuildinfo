@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/addmedia.tsx","./src/components/library.tsx","./src/components/miniplayer.tsx","./src/components/player.tsx","./src/components/playlists.tsx","./src/components/pocketmode.tsx","./src/components/settings.tsx","./src/lib/db.ts","./src/lib/mediasession.ts","./src/lib/storage.ts","./src/lib/types.ts"],"version":"5.9.3"}
