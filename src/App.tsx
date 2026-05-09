@@ -63,6 +63,7 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playerOpen, setPlayerOpen] = useState(false);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const playableTracks = useMemo(() => tracks.filter((track) => track.kind !== "youtube" && track.file), [tracks]);
@@ -151,7 +152,9 @@ export default function App() {
 
   async function createPlaylist(name: string) {
     const stamp = Date.now();
-    await savePlaylist({ id: crypto.randomUUID(), name, trackIds: [], createdAt: stamp, updatedAt: stamp });
+    const id = crypto.randomUUID();
+    await savePlaylist({ id, name, trackIds: [], createdAt: stamp, updatedAt: stamp });
+    setSelectedPlaylistId(id);
     await refresh();
   }
 
@@ -162,7 +165,13 @@ export default function App() {
 
   async function removePlaylist(id: string) {
     await deletePlaylist(id);
+    if (selectedPlaylistId === id) setSelectedPlaylistId(null);
     await refresh();
+  }
+
+  function openPlaylist(playlist: Playlist) {
+    setSelectedPlaylistId(playlist.id);
+    setTab("playlists");
   }
 
   function queueAndPlay(ids: string[], startId?: string, queueName?: string) {
@@ -343,7 +352,7 @@ export default function App() {
               <h2 className="mb-3 text-lg font-black">Recent Playlists</h2>
               <div className="grid grid-cols-2 gap-3">
                 {recentPlaylists.map((playlist) => (
-                  <button key={playlist.id} className="glass min-h-28 rounded-3xl p-4 text-left" onClick={() => playPlaylist(playlist)}>
+                  <button key={playlist.id} className="glass min-h-28 rounded-3xl p-4 text-left" onClick={() => openPlaylist(playlist)}>
                     <span className="block text-lg font-black">{playlist.name}</span>
                     <span className="mt-2 block text-xs text-white/45">{playlist.trackIds.length} items</span>
                   </button>
@@ -354,7 +363,18 @@ export default function App() {
         )}
 
         {tab === "library" && <Library tracks={tracks} onPlay={playTrack} onDelete={removeTrack} onUpdate={updateTrack} />}
-        {tab === "playlists" && <Playlists playlists={playlists} tracks={tracks} onCreate={createPlaylist} onUpdate={updatePlaylist} onDelete={removePlaylist} onPlay={playPlaylist} />}
+        {tab === "playlists" && (
+          <Playlists
+            playlists={playlists}
+            tracks={tracks}
+            selectedId={selectedPlaylistId}
+            onCreate={createPlaylist}
+            onUpdate={updatePlaylist}
+            onDelete={removePlaylist}
+            onPlay={playPlaylist}
+            onSelect={setSelectedPlaylistId}
+          />
+        )}
         {tab === "add" && <AddMedia playlists={playlists} onAdd={addTrack} onError={showError} />}
         {tab === "settings" && (
           <Settings

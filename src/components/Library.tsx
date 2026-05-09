@@ -75,9 +75,18 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
           <div className="glass slide-up w-full rounded-3xl p-4">
             <h2 className="text-xl font-black">Edit Metadata</h2>
             <div className="mt-4 space-y-3">
-              <input className="h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
-              <input className="h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" value={editing.creator} onChange={(e) => setEditing({ ...editing, creator: e.target.value })} />
-              <textarea className="min-h-24 w-full rounded-2xl bg-black/35 px-4 py-3 outline-none" value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase text-white/45">Title</span>
+                <input className="h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" placeholder="Title" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase text-white/45">Creator</span>
+                <input className="h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" placeholder="Creator / artist / channel" value={editing.creator} onChange={(e) => setEditing({ ...editing, creator: e.target.value })} />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase text-white/45">Notes</span>
+                <textarea className="min-h-24 w-full rounded-2xl bg-black/35 px-4 py-3 outline-none" placeholder="Notes" value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+              </label>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button className="h-12 rounded-2xl bg-white/10 font-bold" onClick={() => setEditing(null)}>

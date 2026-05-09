@@ -5,16 +5,17 @@ import type { Playlist, Track } from "../lib/types";
 interface PlaylistsProps {
   playlists: Playlist[];
   tracks: Track[];
+  selectedId: string | null;
   onCreate: (name: string) => void;
   onUpdate: (playlist: Playlist) => void;
   onDelete: (id: string) => void;
   onPlay: (playlist: Playlist) => void;
+  onSelect: (id: string) => void;
 }
 
-export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDelete, onPlay }: PlaylistsProps) {
+export default function Playlists({ playlists, tracks, selectedId, onCreate, onUpdate, onDelete, onPlay, onSelect }: PlaylistsProps) {
   const [name, setName] = useState("");
-  const [selected, setSelected] = useState<string | null>(playlists[0]?.id ?? null);
-  const playlist = playlists.find((item) => item.id === selected) ?? playlists[0];
+  const playlist = playlists.find((item) => item.id === selectedId) ?? playlists[0];
 
   function moveTrack(index: number, direction: -1 | 1) {
     if (!playlist) return;
@@ -60,7 +61,7 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
         {playlists.map((item) => (
-          <button key={item.id} className={`h-11 shrink-0 rounded-full px-4 font-bold ${playlist?.id === item.id ? "bg-white text-black" : "bg-white/10"}`} onClick={() => setSelected(item.id)}>
+          <button key={item.id} className={`h-11 shrink-0 rounded-full px-4 font-bold ${playlist?.id === item.id ? "bg-white text-black" : "bg-white/10"}`} onClick={() => onSelect(item.id)}>
             {item.name}
           </button>
         ))}
@@ -82,24 +83,31 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
           </div>
 
           <div className="space-y-3">
-            {playlist.trackIds.map((trackId, index) => {
-              const track = tracks.find((item) => item.id === trackId);
-              if (!track) return null;
-              return (
-                <article key={`${trackId}-${index}`} className="glass slide-up flex items-center gap-3 rounded-2xl p-3">
-                  <button className="grid h-10 w-8 place-items-center rounded-xl bg-white/5" onClick={() => moveTrack(index, index === 0 ? 1 : -1)} aria-label="Reorder item">
-                    <GripVertical size={18} />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold">{track.title}</p>
-                    <p className="truncate text-xs text-white/50">{track.kind === "youtube" ? "Open on YouTube" : track.creator || "Local media"}</p>
-                  </div>
-                  <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => toggleTrack(track.id)} aria-label="Remove from playlist">
-                    <Trash2 size={16} />
-                  </button>
-                </article>
-              );
-            })}
+            {playlist.trackIds.length ? (
+              playlist.trackIds.map((trackId, index) => {
+                const track = tracks.find((item) => item.id === trackId);
+                if (!track) return null;
+                return (
+                  <article key={`${trackId}-${index}`} className="glass slide-up flex items-center gap-3 rounded-2xl p-3">
+                    <button className="grid h-10 w-8 place-items-center rounded-xl bg-white/5" onClick={() => moveTrack(index, index === 0 ? 1 : -1)} aria-label="Reorder item">
+                      <GripVertical size={18} />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold">{track.title}</p>
+                      <p className="truncate text-xs text-white/50">{track.kind === "youtube" ? "Open on YouTube" : track.creator || "Local media"}</p>
+                    </div>
+                    <button className="grid h-10 w-10 place-items-center rounded-full bg-white/10" onClick={() => toggleTrack(track.id)} aria-label="Remove from playlist">
+                      <Trash2 size={16} />
+                    </button>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="glass slide-up rounded-3xl p-6 text-center">
+                <p className="text-lg font-black">No songs in this playlist</p>
+                <p className="mt-2 text-sm leading-6 text-white/50">Add tracks below when you are ready.</p>
+              </div>
+            )}
           </div>
 
           <div>
