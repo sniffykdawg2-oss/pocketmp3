@@ -11,6 +11,8 @@ interface YouTubeConvertProps {
 
 const now = () => Date.now();
 const id = () => crypto.randomUUID();
+const converterApiBase = String(import.meta.env.VITE_CONVERTER_API_URL || "").replace(/\/$/, "");
+const converterApiUrl = `${converterApiBase}/api/convert-youtube`;
 
 function decodeHeader(value: string | null) {
   if (!value) return "";
@@ -41,7 +43,7 @@ export default function YouTubeConvert({ playlists, onAdd, onError }: YouTubeCon
     setConverting(true);
     setLastAdded(null);
     try {
-      const response = await fetch("/api/convert-youtube", {
+      const response = await fetch(converterApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: youtubeUrl }),
