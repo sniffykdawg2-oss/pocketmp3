@@ -9,6 +9,8 @@ export interface Track {
   title: string;
   creator: string;
   notes?: string;
+  cover?: Blob;
+  coverUrl?: string;
   file?: Blob;
   fileName?: string;
   mimeType?: string;
@@ -45,7 +47,7 @@ export interface PlaybackState {
 
 export interface MetadataExport {
   exportedAt: string;
-  tracks: Omit<Track, "file">[];
+  tracks: Omit<Track, "file" | "cover" | "coverUrl">[];
   playlists: Playlist[];
   settings: Settings;
 }

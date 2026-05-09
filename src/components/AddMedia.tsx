@@ -1,7 +1,7 @@
 import { FileAudio, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
-import { copyFileToStoredBlob, isSupportedFile, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
+import { copyFileToStoredBlob, extractMp3Cover, isSupportedFile, maxFileSize, readDuration, requestPersistentStorage } from "../lib/storage";
 
 interface AddMediaProps {
   playlists: Playlist[];
@@ -30,7 +30,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
     try {
       const storedFile = await copyFileToStoredBlob(file);
       await requestPersistentStorage();
-      const duration = await readDuration(storedFile);
+      const [duration, cover] = await Promise.all([readDuration(storedFile), extractMp3Cover(storedFile)]);
       const stamp = now();
       await onAdd({
         id: id(),
@@ -43,6 +43,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
         mimeType: file.type,
         size: file.size,
         duration,
+        cover,
         playlistIds: playlistId ? [playlistId] : [],
         lastPosition: 0,
         addedAt: stamp,

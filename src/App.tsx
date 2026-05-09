@@ -9,7 +9,7 @@ import Playlists from "./components/Playlists";
 import Settings from "./components/Settings";
 import { clearAllData, defaultSettings, deletePlaylist, deleteTrack, getPlaylists, getSettings, getTracks, savePlaylist, saveSettings, saveTrack } from "./lib/db";
 import { setupMediaSession } from "./lib/mediaSession";
-import { downloadJson, exportMetadata, formatTime } from "./lib/storage";
+import { downloadJson, exportMetadata, extractMp3Cover, formatTime } from "./lib/storage";
 import type { MetadataExport, PlaybackState, Playlist, Settings as SettingsType, Track } from "./lib/types";
 
 type Tab = "home" | "library" | "playlists" | "add" | "settings";
@@ -55,6 +55,10 @@ const accentVars: Record<SettingsType["accent"], CSSProperties> = {
 
 export default function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const loadedTrackIdRef = useRef<string | null>(null);
+  const coverUrlsRef = useRef<string[]>([]);
+  const coverBackfillRef = useRef<Set<string>>(new Set());
   const [tab, setTab] = useState<Tab>("home");
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -63,7 +67,6 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playerOpen, setPlayerOpen] = useState(false);
-  const [startPosition, setStartPosition] = useState(0);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,38 +76,47 @@ export default function App() {
   async function refresh() {
     try {
       const [nextTracks, nextPlaylists, nextSettings] = await Promise.all([getTracks(), getPlaylists(), getSettings()]);
-      const hydrated = nextTracks.map((track) => ({ ...track, category: track.category ?? "song" }));
+      coverUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      coverUrlsRef.current = [];
+      const hydrated = nextTracks.map((track) => {
+        const coverUrl = track.cover ? URL.createObjectURL(track.cover) : undefined;
+        if (coverUrl) coverUrlsRef.current.push(coverUrl);
+        return { ...track, category: track.category ?? "song", coverUrl };
+      });
       setTracks(hydrated);
       setPlaylists(nextPlaylists.sort((a, b) => b.updatedAt - a.updatedAt));
       setSettingsState(nextSettings);
+      void backfillMissingCovers(nextTracks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "IndexedDB unavailable. PocketMP3 cannot load local storage.");
     }
   }
 
+  async function backfillMissingCovers(items: Track[]) {
+    const missing = items.filter((track) => track.file && !track.cover && !coverBackfillRef.current.has(track.id));
+    if (!missing.length) return;
+
+    let changed = false;
+    for (const track of missing) {
+      if (!track.file) continue;
+      coverBackfillRef.current.add(track.id);
+      const cover = await extractMp3Cover(track.file);
+      if (cover) {
+        await saveTrack({ ...track, cover, updatedAt: Date.now() });
+        changed = true;
+      }
+    }
+    if (changed) await refresh();
+  }
+
   useEffect(() => {
     refresh();
+    return () => {
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      loadedTrackIdRef.current = null;
+      coverUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
   }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !currentTrack?.file) return;
-
-    const src = URL.createObjectURL(currentTrack.file);
-    audio.src = src;
-    audio.playbackRate = playback.speed;
-    audio.currentTime = startPosition;
-    setCurrentTime(startPosition);
-
-    if (playback.isPlaying) {
-      audio.play().catch(() => {
-        setPlayback((state) => ({ ...state, isPlaying: false }));
-        setError("Playback was blocked by the browser. Tap play to start.");
-      });
-    }
-
-    return () => URL.revokeObjectURL(src);
-  }, [currentTrack?.id, startPosition]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playback.speed;
@@ -147,7 +159,13 @@ export default function App() {
         playlist.trackIds.includes(trackId) ? savePlaylist({ ...playlist, trackIds: playlist.trackIds.filter((id) => id !== trackId), updatedAt: Date.now() }) : Promise.resolve(),
       ),
     );
-    if (playback.currentTrackId === trackId) setPlayback((state) => ({ ...state, currentTrackId: undefined, isPlaying: false }));
+    if (playback.currentTrackId === trackId) {
+      pause();
+      loadedTrackIdRef.current = null;
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+      setPlayback((state) => ({ ...state, currentTrackId: undefined, isPlaying: false }));
+    }
     await refresh();
   }
 
@@ -175,6 +193,50 @@ export default function App() {
     setTab("playlists");
   }
 
+  function loadAudioTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
+    const track = tracks.find((item) => item.id === trackId);
+    const audio = audioRef.current;
+    if (!track?.file || !audio) return false;
+
+    audio.pause();
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    const src = URL.createObjectURL(track.file);
+    audioUrlRef.current = src;
+    loadedTrackIdRef.current = trackId;
+    audio.src = src;
+    audio.autoplay = shouldPlay;
+    audio.playbackRate = playback.speed;
+    setCurrentTime(startAt);
+    setDuration(track.duration ?? 0);
+
+    const applyStart = () => {
+      try {
+        audio.currentTime = startAt;
+      } catch {
+        // Some browsers only allow seeking after metadata is ready.
+      }
+    };
+
+    const tryPlay = () => {
+      if (!shouldPlay) return;
+      audio.play().catch(() => {
+        const retry = () => {
+          audio.play().catch(() => {
+            if (showBlockedMessage) showError("Playback was blocked by the browser. Tap play again.");
+          });
+        };
+        audio.addEventListener("canplay", retry, { once: true });
+      });
+    };
+
+    audio.addEventListener("loadedmetadata", applyStart, { once: true });
+    audio.addEventListener("canplay", tryPlay, { once: true });
+    audio.load();
+    applyStart();
+    tryPlay();
+    return true;
+  }
+
   function queueAndPlay(ids: string[], startId?: string, queueName?: string, startAt = 0) {
     const playableIds = ids.filter((id) => tracks.find((track) => track.id === id && track.file));
     if (!playableIds.length) {
@@ -182,7 +244,7 @@ export default function App() {
       return;
     }
     const currentTrackId = startId && playableIds.includes(startId) ? startId : playableIds[0];
-    setStartPosition(startAt);
+    loadAudioTrack(currentTrackId, startAt, true, true);
     setPlayback((state) => ({ ...state, queue: playableIds, queueName, currentTrackId, isPlaying: true }));
     setPlayerOpen(true);
   }
@@ -199,6 +261,12 @@ export default function App() {
   function play() {
     const audio = audioRef.current;
     if (!audio) return;
+    if (currentTrack?.file && loadedTrackIdRef.current !== currentTrack.id) {
+      const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? 0 : 0;
+      loadAudioTrack(currentTrack.id, startAt, true, true);
+      setPlayback((state) => ({ ...state, isPlaying: true }));
+      return;
+    }
     audio.play().then(() => setPlayback((state) => ({ ...state, isPlaying: true }))).catch(() => showError("Playback was blocked. Tap play again after choosing a track."));
   }
 
@@ -225,7 +293,8 @@ export default function App() {
     const queue = playback.queue;
     const index = queue.indexOf(playback.currentTrackId);
     const nextIndex = playback.shuffle ? Math.floor(Math.random() * queue.length) : index + 1;
-    setStartPosition(0);
+    const nextId = nextIndex >= queue.length ? queue[0] : queue[nextIndex];
+    loadAudioTrack(nextId, 0, true, false);
     if (nextIndex >= queue.length) {
       setPlayback((state) => ({ ...state, currentTrackId: queue[0], isPlaying: true }));
       return;
@@ -236,8 +305,9 @@ export default function App() {
   function previousTrack() {
     if (!playback.queue.length || !playback.currentTrackId) return;
     const index = playback.queue.indexOf(playback.currentTrackId);
-    setStartPosition(0);
-    setPlayback((state) => ({ ...state, currentTrackId: playback.queue[Math.max(0, index - 1)], isPlaying: true }));
+    const previousId = playback.queue[Math.max(0, index - 1)];
+    loadAudioTrack(previousId, 0, true, false);
+    setPlayback((state) => ({ ...state, currentTrackId: previousId, isPlaying: true }));
   }
 
   function seek(time: number) {
@@ -271,6 +341,9 @@ export default function App() {
   async function clearData() {
     if (!confirm("Clear all PocketMP3 local data on this device?")) return;
     pause();
+    loadedTrackIdRef.current = null;
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
     await clearAllData();
     setPlayback(initialPlayback);
     await refresh();
@@ -342,7 +415,9 @@ export default function App() {
               <div className="space-y-2">
                 {recentTracks.map((track) => (
                   <button key={track.id} className="flex w-full items-center gap-3 rounded-2xl bg-white/10 p-3 text-left" onClick={() => playTrack(track.id)}>
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10">{track.title[0]}</div>
+                    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-white/10">
+                      {track.coverUrl ? <img src={track.coverUrl} alt="" className="h-full w-full object-cover" /> : track.title[0]}
+                    </div>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold">{track.title}</span>
                       <span className="block truncate text-xs text-white/45">{track.creator || "Local media"}</span>

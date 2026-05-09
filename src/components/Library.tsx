@@ -47,7 +47,7 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
           <article key={track.id} className="glass slide-up rounded-3xl p-4">
             <div className="flex gap-3">
               <button className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-800" onClick={() => onPlay(track.id)}>
-                <Play size={22} />
+                {track.coverUrl ? <img src={track.coverUrl} alt="" className="h-full w-full object-cover" /> : <Play size={22} />}
               </button>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-bold">{track.title}</h2>
