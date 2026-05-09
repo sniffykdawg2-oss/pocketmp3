@@ -62,7 +62,7 @@ export default function Player(props: PlayerProps) {
 
         <div className="text-center">
           <h1 className="line-clamp-2 text-3xl font-black tracking-normal">{track?.title ?? "Nothing queued"}</h1>
-          <p className="mt-2 text-base text-white/60">{track?.creator || "Add local media to start"}</p>
+          {track?.creator && <p className="mt-2 text-base text-white/60">{track.creator}</p>}
         </div>
 
         <div className="space-y-3">

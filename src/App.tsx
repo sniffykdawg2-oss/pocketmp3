@@ -63,6 +63,7 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playerOpen, setPlayerOpen] = useState(false);
+  const [startPosition, setStartPosition] = useState(0);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,8 +93,8 @@ export default function App() {
     const src = URL.createObjectURL(currentTrack.file);
     audio.src = src;
     audio.playbackRate = playback.speed;
-    audio.currentTime = currentTrack.lastPosition || 0;
-    setCurrentTime(currentTrack.lastPosition || 0);
+    audio.currentTime = startPosition;
+    setCurrentTime(startPosition);
 
     if (playback.isPlaying) {
       audio.play().catch(() => {
@@ -103,7 +104,7 @@ export default function App() {
     }
 
     return () => URL.revokeObjectURL(src);
-  }, [currentTrack?.id]);
+  }, [currentTrack?.id, startPosition]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playback.speed;
@@ -174,23 +175,25 @@ export default function App() {
     setTab("playlists");
   }
 
-  function queueAndPlay(ids: string[], startId?: string, queueName?: string) {
+  function queueAndPlay(ids: string[], startId?: string, queueName?: string, startAt = 0) {
     const playableIds = ids.filter((id) => tracks.find((track) => track.id === id && track.file));
     if (!playableIds.length) {
       showError("This playlist has no saved MP3 files yet.");
       return;
     }
     const currentTrackId = startId && playableIds.includes(startId) ? startId : playableIds[0];
+    setStartPosition(startAt);
     setPlayback((state) => ({ ...state, queue: playableIds, queueName, currentTrackId, isPlaying: true }));
     setPlayerOpen(true);
   }
 
   function playTrack(trackId: string) {
-    queueAndPlay(playableTracks.map((track) => track.id), trackId, "Library");
+    const track = tracks.find((item) => item.id === trackId);
+    queueAndPlay(playableTracks.map((track) => track.id), trackId, "Library", track?.lastPosition ?? 0);
   }
 
   function playPlaylist(playlist: Playlist) {
-    queueAndPlay(playlist.trackIds, undefined, playlist.name);
+    queueAndPlay(playlist.trackIds, undefined, playlist.name, 0);
   }
 
   function play() {
@@ -222,9 +225,9 @@ export default function App() {
     const queue = playback.queue;
     const index = queue.indexOf(playback.currentTrackId);
     const nextIndex = playback.shuffle ? Math.floor(Math.random() * queue.length) : index + 1;
+    setStartPosition(0);
     if (nextIndex >= queue.length) {
-      if (playback.repeat === "playlist") setPlayback((state) => ({ ...state, currentTrackId: queue[0], isPlaying: true }));
-      else setPlayback((state) => ({ ...state, isPlaying: false }));
+      setPlayback((state) => ({ ...state, currentTrackId: queue[0], isPlaying: true }));
       return;
     }
     setPlayback((state) => ({ ...state, currentTrackId: queue[nextIndex], isPlaying: true }));
@@ -233,6 +236,7 @@ export default function App() {
   function previousTrack() {
     if (!playback.queue.length || !playback.currentTrackId) return;
     const index = playback.queue.indexOf(playback.currentTrackId);
+    setStartPosition(0);
     setPlayback((state) => ({ ...state, currentTrackId: playback.queue[Math.max(0, index - 1)], isPlaying: true }));
   }
 
