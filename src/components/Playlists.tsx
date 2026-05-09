@@ -1,4 +1,4 @@
-import { ArrowLeft, GripVertical, ListMusic, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, GripVertical, ListMusic, Pencil, Play, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
 
@@ -15,7 +15,9 @@ interface PlaylistsProps {
 
 export default function Playlists({ playlists, tracks, selectedId, onCreate, onUpdate, onDelete, onPlay, onSelect }: PlaylistsProps) {
   const [name, setName] = useState("");
+  const [trackQuery, setTrackQuery] = useState("");
   const playlist = playlists.find((item) => item.id === selectedId);
+  const matchingTracks = tracks.filter((track) => `${track.title} ${track.creator} ${track.category} ${track.notes ?? ""}`.toLowerCase().includes(trackQuery.trim().toLowerCase()));
 
   function moveTrack(index: number, direction: -1 | 1) {
     if (!playlist) return;
@@ -127,8 +129,12 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white/60">
               <Pencil size={16} /> Add or remove tracks
             </div>
+            <div className="glass mb-3 flex h-12 items-center gap-3 rounded-2xl px-4">
+              <Search size={18} className="text-white/45" />
+              <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="Search songs" value={trackQuery} onChange={(e) => setTrackQuery(e.target.value)} />
+            </div>
             <div className="space-y-2">
-              {tracks.map((track) => (
+              {matchingTracks.map((track) => (
                 <button key={track.id} className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left ${playlist.trackIds.includes(track.id) ? "accent-bg-soft" : "bg-white/10"}`} onClick={() => toggleTrack(track.id)}>
                   <span className="min-w-0">
                     <span className="block truncate font-bold">{track.title}</span>
@@ -137,6 +143,7 @@ export default function Playlists({ playlists, tracks, selectedId, onCreate, onU
                   <span className="text-sm font-black">{playlist.trackIds.includes(track.id) ? "Added" : "Add"}</span>
                 </button>
               ))}
+              {!matchingTracks.length && <div className="rounded-2xl bg-white/10 px-4 py-5 text-center text-sm text-white/50">No matching songs</div>}
             </div>
           </div>
         </div>
