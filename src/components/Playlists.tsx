@@ -46,7 +46,7 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
       <div className="glass flex gap-2 rounded-3xl p-3">
         <input className="min-w-0 flex-1 rounded-2xl bg-black/35 px-4 outline-none" placeholder="New playlist" value={name} onChange={(e) => setName(e.target.value)} />
         <button
-          className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-400 text-black"
+          className="accent-bg grid h-12 w-12 place-items-center rounded-2xl"
           onClick={() => {
             if (!name.trim()) return;
             onCreate(name.trim());
@@ -108,10 +108,10 @@ export default function Playlists({ playlists, tracks, onCreate, onUpdate, onDel
             </div>
             <div className="space-y-2">
               {tracks.map((track) => (
-                <button key={track.id} className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left ${playlist.trackIds.includes(track.id) ? "bg-sky-400/20" : "bg-white/10"}`} onClick={() => toggleTrack(track.id)}>
+                <button key={track.id} className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left ${playlist.trackIds.includes(track.id) ? "accent-bg-soft" : "bg-white/10"}`} onClick={() => toggleTrack(track.id)}>
                   <span className="min-w-0">
                     <span className="block truncate font-bold">{track.title}</span>
-                    <span className="text-xs text-white/45">{track.kind}</span>
+                    <span className="text-xs capitalize text-white/45">{track.kind === "youtube" ? "YouTube reference" : track.category}</span>
                   </span>
                   <span className="text-sm font-black">{playlist.trackIds.includes(track.id) ? "Added" : "Add"}</span>
                 </button>

@@ -13,6 +13,13 @@ interface SettingsProps {
 }
 
 export default function Settings({ tracks, settings, onSettings, onClear, onExport, onImport, onError }: SettingsProps) {
+  const accentSwatches: Record<Accent, string> = {
+    blue: "bg-sky-400",
+    purple: "bg-fuchsia-400",
+    green: "bg-emerald-400",
+    red: "bg-rose-400",
+  };
+
   async function importFile(file?: File) {
     if (!file) return;
     try {
@@ -43,7 +50,7 @@ export default function Settings({ tracks, settings, onSettings, onClear, onExpo
 
       <div className="glass rounded-3xl p-5">
         <div className="flex items-center gap-3">
-          <HardDrive className="text-sky-300" />
+          <HardDrive className="accent-text" />
           <div>
             <h2 className="font-black">Storage</h2>
             <p className="text-sm text-white/55">{formatBytes(estimateStorage(tracks))} estimated local media storage</p>
@@ -59,7 +66,12 @@ export default function Settings({ tracks, settings, onSettings, onClear, onExpo
         </label>
         <div className="grid grid-cols-4 gap-2">
           {(["blue", "purple", "green", "red"] as Accent[]).map((accent) => (
-            <button key={accent} className={`h-11 rounded-2xl font-bold capitalize ${settings.accent === accent ? "bg-white text-black" : "bg-white/10"}`} onClick={() => onSettings({ ...settings, accent })}>
+            <button
+              key={accent}
+              className={`flex h-11 items-center justify-center gap-2 rounded-2xl font-bold capitalize ${settings.accent === accent ? "accent-bg" : "bg-white/10"}`}
+              onClick={() => onSettings({ ...settings, accent })}
+            >
+              <span className={`h-3 w-3 rounded-full ${accentSwatches[accent]}`} />
               {accent}
             </button>
           ))}

@@ -1,5 +1,5 @@
-const CACHE_NAME = "pocketmp3-shell-v1";
-const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icons/icon-192.svg", "/icons/icon-512.svg"];
+const CACHE_NAME = "pocketmp3-shell-v2";
+const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icons/icon-192.svg", "./icons/icon-512.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -20,7 +20,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).catch(() => caches.match("/index.html"));
+      return fetch(event.request).catch(() => caches.match("./index.html"));
     }),
   );
 });

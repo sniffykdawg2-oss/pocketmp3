@@ -15,8 +15,8 @@ export default function MiniPlayer({ track, isPlaying, onOpen, onToggle }: MiniP
     <div className="fixed bottom-[5.75rem] left-3 right-3 z-30">
       <div className="glass flex h-16 items-center gap-3 rounded-2xl px-3 shadow-2xl">
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={onOpen}>
-          <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-800">
-            {track.coverUrl ? <img src={track.coverUrl} alt="" className="h-full w-full object-cover" /> : <span className="font-black">{track.title[0]}</span>}
+          <div className="accent-bg grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl">
+            <span className="font-black">{track.title[0]}</span>
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">{track.title}</p>

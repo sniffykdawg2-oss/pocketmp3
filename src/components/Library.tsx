@@ -1,6 +1,6 @@
 import { Edit3, ExternalLink, Play, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { MediaKind, Track } from "../lib/types";
+import type { MediaCategory, Track } from "../lib/types";
 import { formatBytes, formatTime } from "../lib/storage";
 
 interface LibraryProps {
@@ -12,16 +12,15 @@ interface LibraryProps {
 
 export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryProps) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"recent" | "alpha">("recent");
-  const [filter, setFilter] = useState<MediaKind | "all">("all");
+  const [filter, setFilter] = useState<MediaCategory | "all" | "recent">("all");
   const [editing, setEditing] = useState<Track | null>(null);
 
   const filtered = useMemo(() => {
     return tracks
-      .filter((track) => filter === "all" || track.kind === filter)
+      .filter((track) => filter === "all" || filter === "recent" || track.category === filter)
       .filter((track) => `${track.title} ${track.creator} ${track.notes}`.toLowerCase().includes(query.toLowerCase()))
-      .sort((a, b) => (sort === "recent" ? b.addedAt - a.addedAt : a.title.localeCompare(b.title)));
-  }, [filter, query, sort, tracks]);
+      .sort((a, b) => (filter === "recent" ? b.addedAt - a.addedAt : a.title.localeCompare(b.title)));
+  }, [filter, query, tracks]);
 
   return (
     <section className="space-y-5 pb-32">
@@ -36,14 +35,11 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {(["all", "audio", "video", "youtube"] as const).map((item) => (
-          <button key={item} className={`h-10 rounded-full px-4 text-sm font-bold capitalize ${filter === item ? "bg-sky-400 text-black" : "bg-white/10"}`} onClick={() => setFilter(item)}>
-            {item}
+        {(["all", "recent", "podcast", "song"] as const).map((item) => (
+          <button key={item} className={`h-10 rounded-full px-4 text-sm font-bold capitalize ${filter === item ? "accent-bg" : "bg-white/10"}`} onClick={() => setFilter(item)}>
+            {item === "recent" ? "Recently added" : item === "podcast" ? "Podcasts" : item === "song" ? "Songs" : "All"}
           </button>
         ))}
-        <button className="h-10 rounded-full bg-white/10 px-4 text-sm font-bold" onClick={() => setSort(sort === "recent" ? "alpha" : "recent")}>
-          {sort === "recent" ? "Recently added" : "A-Z"}
-        </button>
       </div>
 
       <div className="space-y-3">
@@ -51,13 +47,13 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
           <article key={track.id} className="glass rounded-3xl p-4">
             <div className="flex gap-3">
               <button className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-800" onClick={() => (track.kind === "youtube" ? window.open(track.sourceLink, "_blank") : onPlay(track.id))}>
-                {track.coverUrl ? <img src={track.coverUrl} alt="" className="h-full w-full object-cover" /> : track.kind === "youtube" ? <ExternalLink size={22} /> : <Play size={22} />}
+                {track.kind === "youtube" ? <ExternalLink size={22} /> : <Play size={22} />}
               </button>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-bold">{track.title}</h2>
                 <p className="truncate text-sm text-white/55">{track.creator || "Unknown creator"}</p>
                 <p className="mt-1 text-xs text-white/40">
-                  {track.kind === "youtube" ? "YouTube reference" : `${formatTime(track.duration)} • ${formatBytes(track.size)}`}
+                  {track.kind === "youtube" ? `YouTube reference • ${track.category}` : `${track.category} • ${formatTime(track.duration)} • ${formatBytes(track.size)}`}
                 </p>
               </div>
               <div className="flex gap-1">
@@ -88,7 +84,7 @@ export default function Library({ tracks, onPlay, onDelete, onUpdate }: LibraryP
                 Cancel
               </button>
               <button
-                className="h-12 rounded-2xl bg-sky-400 font-black text-black"
+                className="accent-bg h-12 rounded-2xl font-black"
                 onClick={() => {
                   onUpdate({ ...editing, updatedAt: Date.now() });
                   setEditing(null);

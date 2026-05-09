@@ -1,4 +1,5 @@
-export type MediaKind = "audio" | "video" | "youtube";
+export type MediaKind = "audio" | "youtube";
+export type MediaCategory = "podcast" | "song" | "other";
 export type Accent = "blue" | "purple" | "green" | "red";
 export type SortMode = "recent" | "alpha";
 export type RepeatMode = "off" | "one" | "playlist";
@@ -6,12 +7,11 @@ export type RepeatMode = "off" | "one" | "playlist";
 export interface Track {
   id: string;
   kind: MediaKind;
+  category: MediaCategory;
   title: string;
   creator: string;
   sourceLink?: string;
   notes?: string;
-  cover?: Blob;
-  coverUrl?: string;
   file?: Blob;
   fileName?: string;
   mimeType?: string;
@@ -48,7 +48,7 @@ export interface PlaybackState {
 
 export interface MetadataExport {
   exportedAt: string;
-  tracks: Omit<Track, "file" | "cover" | "coverUrl">[];
+  tracks: Omit<Track, "file">[];
   playlists: Playlist[];
   settings: Settings;
 }

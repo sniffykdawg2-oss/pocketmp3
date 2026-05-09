@@ -2,15 +2,10 @@ import type { MetadataExport, Playlist, Settings, Track } from "./types";
 
 export const supportedTypes = [
   "audio/mpeg",
-  "audio/mp4",
-  "audio/x-m4a",
-  "audio/wav",
-  "audio/aac",
-  "video/mp4",
-  "video/quicktime",
+  "audio/mp3",
 ];
 
-export const supportedExtensions = [".mp3", ".m4a", ".wav", ".aac", ".mp4", ".mov"];
+export const supportedExtensions = [".mp3"];
 export const maxFileSize = 350 * 1024 * 1024;
 
 export function isSupportedFile(file: File) {
@@ -35,13 +30,13 @@ export function formatBytes(bytes = 0) {
 }
 
 export function estimateStorage(tracks: Track[]) {
-  return tracks.reduce((sum, track) => sum + (track.size ?? 0) + (track.cover?.size ?? 0), 0);
+  return tracks.reduce((sum, track) => sum + (track.size ?? 0), 0);
 }
 
 export function exportMetadata(tracks: Track[], playlists: Playlist[], settings: Settings): MetadataExport {
   return {
     exportedAt: new Date().toISOString(),
-    tracks: tracks.map(({ file: _file, cover: _cover, coverUrl: _coverUrl, ...track }) => track),
+    tracks: tracks.map(({ file: _file, ...track }) => track),
     playlists,
     settings,
   };
@@ -49,7 +44,7 @@ export function exportMetadata(tracks: Track[], playlists: Playlist[], settings:
 
 export async function readDuration(file: Blob): Promise<number | undefined> {
   return new Promise((resolve) => {
-    const el = document.createElement(file.type.startsWith("video/") ? "video" : "audio");
+    const el = document.createElement("audio");
     const url = URL.createObjectURL(file);
     el.preload = "metadata";
     el.src = url;

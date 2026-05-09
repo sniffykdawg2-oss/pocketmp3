@@ -12,15 +12,10 @@ interface Handlers {
 export function setupMediaSession(track: Track | undefined, handlers: Handlers) {
   if (!("mediaSession" in navigator) || !track) return;
 
-  const artwork = track.coverUrl
-    ? [{ src: track.coverUrl, sizes: "512x512", type: track.cover?.type || "image/png" }]
-    : undefined;
-
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.title,
     artist: track.creator || "PocketMP3",
     album: "PocketMP3",
-    artwork,
   });
 
   // iOS/Safari controls whether HTML5 media can keep playing in the background

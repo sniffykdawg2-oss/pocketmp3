@@ -55,13 +55,9 @@ export default function Player(props: PlayerProps) {
 
       <div className="flex flex-1 flex-col justify-center gap-8">
         <div className="mx-auto grid aspect-square w-full max-w-[20rem] place-items-center overflow-hidden rounded-[2rem] bg-slate-900 shadow-glow">
-          {track?.coverUrl ? (
-            <img src={track.coverUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-500/60 via-fuchsia-500/25 to-emerald-400/40">
-              <span className="text-7xl font-black text-white/90">{track?.title?.[0]?.toUpperCase() ?? "P"}</span>
-            </div>
-          )}
+          <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-500/60 via-fuchsia-500/25 to-emerald-400/40">
+            <span className="text-7xl font-black text-white/90">{track?.title?.[0]?.toUpperCase() ?? "P"}</span>
+          </div>
         </div>
 
         <div className="text-center">
@@ -76,7 +72,7 @@ export default function Player(props: PlayerProps) {
             max={duration || 0}
             value={Math.min(currentTime, duration || currentTime)}
             onChange={(event) => onSeek(Number(event.target.value))}
-            className="w-full accent-sky-400"
+            className="accent-range w-full"
             aria-label="Playback progress"
           />
           <div className="flex justify-between text-xs text-white/50">
@@ -87,7 +83,7 @@ export default function Player(props: PlayerProps) {
 
         <div className="flex items-center justify-center gap-4">
           <button
-            className={`grid h-11 w-11 place-items-center rounded-full ${shuffle ? "bg-sky-400 text-black" : "bg-white/10"}`}
+            className={`grid h-11 w-11 place-items-center rounded-full ${shuffle ? "accent-bg" : "bg-white/10"}`}
             onClick={onShuffle}
             aria-label="Shuffle"
           >
@@ -103,7 +99,7 @@ export default function Player(props: PlayerProps) {
             <SkipForward size={23} />
           </button>
           <button
-            className={`grid h-11 w-11 place-items-center rounded-full ${repeat !== "off" ? "bg-sky-400 text-black" : "bg-white/10"}`}
+            className={`grid h-11 w-11 place-items-center rounded-full ${repeat !== "off" ? "accent-bg" : "bg-white/10"}`}
             onClick={onRepeat}
             aria-label="Repeat"
           >

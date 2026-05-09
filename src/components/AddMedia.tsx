@@ -1,4 +1,4 @@
-import { FileAudio, Image, Link, Plus } from "lucide-react";
+import { FileAudio, Link, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
 import { isSupportedFile, isYoutubeUrl, maxFileSize, readDuration } from "../lib/storage";
@@ -14,16 +14,19 @@ const id = () => crypto.randomUUID();
 
 export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [cover, setCover] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [category, setCategory] = useState<Track["category"]>("song");
   const [title, setTitle] = useState("");
   const [creator, setCreator] = useState("");
   const [notes, setNotes] = useState("");
   const [playlistId, setPlaylistId] = useState("");
   const [saving, setSaving] = useState(false);
 
-  async function saveUpload() {
-    if (!file) return onError("Choose an audio or video file first.");
+  async function saveMedia() {
+    if (!file && !youtubeUrl.trim()) return onError("Choose an MP3 file or paste a YouTube link first.");
+    if (!file && youtubeUrl.trim()) return saveYoutubeReference();
+
+    if (!file) return;
     if (!isSupportedFile(file)) return onError("That file type is not supported here.");
     if (file.size > maxFileSize) return onError("That file is too large for comfortable browser storage.");
 
@@ -33,7 +36,8 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
       const stamp = now();
       await onAdd({
         id: id(),
-        kind: file.type.startsWith("video/") ? "video" : "audio",
+        kind: "audio",
+        category,
         title: title.trim() || file.name.replace(/\.[^/.]+$/, ""),
         creator: creator.trim(),
         notes: notes.trim(),
@@ -43,14 +47,13 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
         mimeType: file.type,
         size: file.size,
         duration,
-        cover: cover ?? undefined,
         playlistIds: playlistId ? [playlistId] : [],
         lastPosition: 0,
         addedAt: stamp,
         updatedAt: stamp,
       });
       setFile(null);
-      setCover(null);
+      setCategory("song");
       setTitle("");
       setCreator("");
       setNotes("");
@@ -69,6 +72,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
     await onAdd({
       id: id(),
       kind: "youtube",
+      category,
       title: title.trim() || "Saved YouTube link",
       creator: creator.trim(),
       sourceLink: youtubeUrl.trim(),
@@ -79,6 +83,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
       updatedAt: stamp,
     });
     setYoutubeUrl("");
+    setCategory("song");
     setTitle("");
     setCreator("");
     setNotes("");
@@ -94,32 +99,31 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
 
       <div className="glass space-y-4 rounded-3xl p-4">
         <label className="flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
-          <FileAudio className="text-sky-300" size={30} />
+          <FileAudio className="accent-text" size={30} />
           <span className="min-w-0">
-            <span className="block font-bold">{file ? file.name : "Choose local file"}</span>
-            <span className="text-xs text-white/50">MP3, M4A, WAV, AAC, MP4, MOV when supported</span>
+            <span className="block font-bold">{file ? file.name : "Choose MP3 file"}</span>
+            <span className="text-xs text-white/50">MP3 files only for local playback.</span>
           </span>
-          <input className="hidden" type="file" accept=".mp3,.m4a,.wav,.aac,.mp4,.mov,audio/*,video/mp4,video/quicktime" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </label>
-
-        <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl bg-white/5 px-4">
-          <Image size={19} className="text-white/55" />
-          <span className="min-w-0 flex-1 truncate text-sm text-white/70">{cover ? cover.name : "Optional cover image"}</span>
-          <input className="hidden" type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+          <input className="hidden" type="file" accept=".mp3,audio/mpeg,audio/mp3" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
       </div>
 
       <div className="glass space-y-3 rounded-3xl p-4">
-        <div className="flex items-center gap-2 text-sm font-bold text-sky-200">
+        <div className="accent-text flex items-center gap-2 text-sm font-bold">
           <Link size={17} /> YouTube reference
         </div>
-        <input className="h-12 w-full rounded-2xl bg-black/35 px-4 outline-none ring-sky-400/40 focus:ring-2" placeholder="https://youtube.com/watch..." value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
-        <p className="text-xs leading-5 text-white/45">PocketMP3 saves the link and metadata only. Browser-only YouTube-to-MP3 conversion is not included.</p>
+        <input className="accent-ring h-12 w-full rounded-2xl bg-black/35 px-4 outline-none" placeholder="https://youtube.com/watch..." value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
+        <p className="text-xs leading-5 text-white/45">YouTube links are saved as references. Upload an owned MP3 file for locked-screen local playback.</p>
       </div>
 
       <div className="space-y-3">
-        <input className="h-12 w-full rounded-2xl bg-white/10 px-4 outline-none ring-sky-400/40 focus:ring-2" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input className="h-12 w-full rounded-2xl bg-white/10 px-4 outline-none ring-sky-400/40 focus:ring-2" placeholder="Creator / artist / channel" value={creator} onChange={(e) => setCreator(e.target.value)} />
+        <select className="h-12 w-full rounded-2xl bg-white/10 px-4 capitalize outline-none" value={category} onChange={(e) => setCategory(e.target.value as Track["category"])}>
+          <option value="song">Song</option>
+          <option value="podcast">Podcast</option>
+          <option value="other">Other</option>
+        </select>
+        <input className="accent-ring h-12 w-full rounded-2xl bg-white/10 px-4 outline-none" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className="accent-ring h-12 w-full rounded-2xl bg-white/10 px-4 outline-none" placeholder="Creator / artist / channel" value={creator} onChange={(e) => setCreator(e.target.value)} />
         <select className="h-12 w-full rounded-2xl bg-white/10 px-4 outline-none" value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
           <option value="">No playlist</option>
           {playlists.map((playlist) => (
@@ -128,17 +132,12 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
             </option>
           ))}
         </select>
-        <textarea className="min-h-24 w-full rounded-2xl bg-white/10 px-4 py-3 outline-none ring-sky-400/40 focus:ring-2" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="accent-ring min-h-24 w-full rounded-2xl bg-white/10 px-4 py-3 outline-none" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <button className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-white text-black font-black" onClick={saveUpload} disabled={saving}>
-          <Plus size={20} /> Upload
-        </button>
-        <button className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-sky-400 text-black font-black" onClick={saveYoutubeReference}>
-          <Link size={20} /> Save Link
-        </button>
-      </div>
+      <button className="accent-bg flex h-14 w-full items-center justify-center gap-2 rounded-2xl font-black" onClick={saveMedia} disabled={saving}>
+        <Plus size={20} /> Upload
+      </button>
     </section>
   );
 }

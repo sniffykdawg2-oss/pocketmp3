@@ -1,11 +1,11 @@
 import { Home, Library as LibraryIcon, ListMusic, PlusCircle, Settings as SettingsIcon, X } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AddMedia from "./components/AddMedia";
 import Library from "./components/Library";
 import MiniPlayer from "./components/MiniPlayer";
 import Player from "./components/Player";
 import Playlists from "./components/Playlists";
-import PocketMode from "./components/PocketMode";
 import Settings from "./components/Settings";
 import { clearAllData, defaultSettings, deletePlaylist, deleteTrack, getPlaylists, getSettings, getTracks, savePlaylist, saveSettings, saveTrack } from "./lib/db";
 import { setupMediaSession } from "./lib/mediaSession";
@@ -22,16 +22,39 @@ const initialPlayback: PlaybackState = {
   speed: 1,
 };
 
-const accentClasses: Record<SettingsType["accent"], string> = {
-  blue: "from-sky-400 to-blue-500",
-  purple: "from-fuchsia-400 to-violet-500",
-  green: "from-emerald-300 to-teal-500",
-  red: "from-rose-400 to-red-500",
+const accentVars: Record<SettingsType["accent"], CSSProperties> = {
+  blue: {
+    "--accent": "#38bdf8",
+    "--accent-2": "#3b82f6",
+    "--accent-soft": "rgb(56 189 248 / 0.2)",
+    "--accent-border": "rgb(56 189 248 / 0.35)",
+    "--accent-ring": "rgb(56 189 248 / 0.42)",
+  } as CSSProperties,
+  purple: {
+    "--accent": "#c084fc",
+    "--accent-2": "#8b5cf6",
+    "--accent-soft": "rgb(192 132 252 / 0.2)",
+    "--accent-border": "rgb(192 132 252 / 0.35)",
+    "--accent-ring": "rgb(192 132 252 / 0.42)",
+  } as CSSProperties,
+  green: {
+    "--accent": "#34d399",
+    "--accent-2": "#14b8a6",
+    "--accent-soft": "rgb(52 211 153 / 0.2)",
+    "--accent-border": "rgb(52 211 153 / 0.35)",
+    "--accent-ring": "rgb(52 211 153 / 0.42)",
+  } as CSSProperties,
+  red: {
+    "--accent": "#fb7185",
+    "--accent-2": "#ef4444",
+    "--accent-soft": "rgb(251 113 133 / 0.2)",
+    "--accent-border": "rgb(251 113 133 / 0.35)",
+    "--accent-ring": "rgb(251 113 133 / 0.42)",
+  } as CSSProperties,
 };
 
 export default function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const objectUrls = useRef<string[]>([]);
   const [tab, setTab] = useState<Tab>("home");
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -40,7 +63,6 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playerOpen, setPlayerOpen] = useState(false);
-  const [pocketMode, setPocketMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const playableTracks = useMemo(() => tracks.filter((track) => track.kind !== "youtube" && track.file), [tracks]);
@@ -49,11 +71,7 @@ export default function App() {
   async function refresh() {
     try {
       const [nextTracks, nextPlaylists, nextSettings] = await Promise.all([getTracks(), getPlaylists(), getSettings()]);
-      const hydrated = nextTracks.map((track) => {
-        const coverUrl = track.cover ? URL.createObjectURL(track.cover) : undefined;
-        if (coverUrl) objectUrls.current.push(coverUrl);
-        return { ...track, coverUrl };
-      });
+      const hydrated = nextTracks.map((track) => ({ ...track, category: track.category ?? "song" }));
       setTracks(hydrated);
       setPlaylists(nextPlaylists.sort((a, b) => b.updatedAt - a.updatedAt));
       setSettingsState(nextSettings);
@@ -64,9 +82,6 @@ export default function App() {
 
   useEffect(() => {
     refresh();
-    return () => {
-      objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
-    };
   }, []);
 
   useEffect(() => {
@@ -234,7 +249,7 @@ export default function App() {
   }
 
   async function importMetadata(data: MetadataExport) {
-    await Promise.all(data.tracks.map((track) => saveTrack({ ...track, playlistIds: track.playlistIds ?? [], lastPosition: track.lastPosition ?? 0 })));
+    await Promise.all(data.tracks.map((track) => saveTrack({ ...track, category: track.category ?? "song", playlistIds: track.playlistIds ?? [], lastPosition: track.lastPosition ?? 0 })));
     await Promise.all(data.playlists.map(savePlaylist));
     if (data.settings) await changeSettings(data.settings);
     await refresh();
@@ -260,7 +275,7 @@ export default function App() {
   const recentPlaylists = playlists.slice(0, 4);
 
   return (
-    <div className={`min-h-screen text-white ${settings.compactMode ? "text-[14px]" : ""}`}>
+    <div className={`min-h-screen text-white ${settings.compactMode ? "text-[14px]" : ""}`} style={accentVars[settings.accent]}>
       <audio
         ref={audioRef}
         className="hidden"
@@ -278,7 +293,7 @@ export default function App() {
           <section className="space-y-5 pb-32">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`bg-gradient-to-r ${accentClasses[settings.accent]} bg-clip-text text-sm font-black uppercase text-transparent`}>PocketMP3</p>
+                <p className="accent-gradient-text text-sm font-black uppercase">PocketMP3</p>
                 <h1 className="mt-1 text-4xl font-black tracking-normal">Your pocket player</h1>
               </div>
               <button className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-black" onClick={() => setTab("add")} aria-label="Add media">
@@ -294,14 +309,19 @@ export default function App() {
                 <button className="h-16 flex-1 rounded-3xl bg-white text-lg font-black text-black" onClick={togglePlayback}>
                   {playback.isPlaying ? "Pause" : "Play"}
                 </button>
-                <button className="h-16 flex-1 rounded-3xl bg-sky-400 text-lg font-black text-black" onClick={() => setPocketMode((value) => !value)}>
-                  Pocket
+                <button className="accent-bg h-16 flex-1 rounded-3xl text-lg font-black" onClick={() => setTab("add")}>
+                  Add
                 </button>
               </div>
               {currentTrack && <p className="mt-4 text-xs text-white/45">Resume at {formatTime(currentTrack.lastPosition)}</p>}
             </div>
 
-            <PocketMode active={pocketMode} track={currentTrack} onToggle={() => setPocketMode((value) => !value)} />
+            <div className="glass rounded-3xl p-4">
+              <h2 className="font-black">Locked-screen playback</h2>
+              <p className="mt-2 text-sm leading-6 text-white/55">
+                Uploaded audio uses the normal HTML5 player and media controls. Your phone/browser decides whether it keeps playing after the screen locks.
+              </p>
+            </div>
 
             <div>
               <h2 className="mb-3 text-lg font-black">Recent Tracks</h2>
@@ -353,7 +373,7 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-black/80 px-2 pt-2 backdrop-blur-xl safe-bottom">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
           {nav.map(([key, Icon, label]) => (
-            <button key={key} className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold ${tab === key ? "bg-white text-black" : "text-white/55"}`} onClick={() => setTab(key)}>
+            <button key={key} className={`flex h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold ${tab === key ? "accent-bg" : "text-white/55"}`} onClick={() => setTab(key)}>
               <Icon size={20} />
               {label}
             </button>
