@@ -50,9 +50,15 @@ export async function getTracks() {
   return db.getAll("tracks");
 }
 
+export async function getTrack(id: string) {
+  const db = await getDb();
+  return db.get("tracks", id);
+}
+
 export async function saveTrack(track: Track) {
   const db = await getDb();
-  await db.put("tracks", track);
+  const { coverUrl: _coverUrl, ...storedTrack } = track;
+  await db.put("tracks", storedTrack);
 }
 
 export async function deleteTrack(id: string) {

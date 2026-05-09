@@ -7,7 +7,7 @@ import MiniPlayer from "./components/MiniPlayer";
 import Player from "./components/Player";
 import Playlists from "./components/Playlists";
 import Settings from "./components/Settings";
-import { clearAllData, defaultSettings, deletePlaylist, deleteTrack, getPlaylists, getSettings, getTracks, savePlaylist, saveSettings, saveTrack } from "./lib/db";
+import { clearAllData, defaultSettings, deletePlaylist, deleteTrack, getPlaylists, getSettings, getTrack, getTracks, savePlaylist, saveSettings, saveTrack } from "./lib/db";
 import { setupMediaSession } from "./lib/mediaSession";
 import { downloadJson, exportMetadata, extractMp3Cover, formatTime } from "./lib/storage";
 import type { MetadataExport, PlaybackState, Playlist, Settings as SettingsType, Track } from "./lib/types";
@@ -59,6 +59,7 @@ export default function App() {
   const loadedTrackIdRef = useRef<string | null>(null);
   const coverUrlsRef = useRef<string[]>([]);
   const coverBackfillRef = useRef<Set<string>>(new Set());
+  const loadRequestRef = useRef(0);
   const [tab, setTab] = useState<Tab>("home");
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -197,14 +198,26 @@ export default function App() {
     setTab("playlists");
   }
 
-  function loadAudioTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
-    const track = tracks.find((item) => item.id === trackId);
+  function makePlayableBlob(file: Blob, fallbackType?: string) {
+    return file.slice(0, file.size, fallbackType || file.type || "audio/mpeg");
+  }
+
+  async function loadAudioTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    const stateTrack = tracks.find((item) => item.id === trackId);
     const audio = audioRef.current;
-    if (!track?.file || !audio) return false;
+    if (!stateTrack?.file || !audio) return false;
+
+    const storedTrack = await getTrack(trackId).catch(() => undefined);
+    if (requestId !== loadRequestRef.current) return false;
+    const track = storedTrack?.file ? storedTrack : stateTrack;
+    if (!track.file) return false;
+    const playableFile = makePlayableBlob(track.file, track.mimeType);
 
     audio.pause();
     clearLoadedAudio();
-    const src = URL.createObjectURL(track.file);
+    const src = URL.createObjectURL(playableFile);
     audioUrlRef.current = src;
     loadedTrackIdRef.current = trackId;
     audio.src = src;
@@ -248,7 +261,7 @@ export default function App() {
       return;
     }
     const currentTrackId = startId && playableIds.includes(startId) ? startId : playableIds[0];
-    loadAudioTrack(currentTrackId, startAt, true, true);
+    void loadAudioTrack(currentTrackId, startAt, true, true);
     setPlayback((state) => ({ ...state, queue: playableIds, queueName, currentTrackId, isPlaying: true }));
     setPlayerOpen(true);
   }
@@ -271,14 +284,14 @@ export default function App() {
 
     if (needsFreshSource && currentTrack) {
       const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? 0 : 0;
-      loadAudioTrack(currentTrack.id, startAt, true, true);
+      void loadAudioTrack(currentTrack.id, startAt, true, true);
       setPlayback((state) => ({ ...state, isPlaying: true }));
       return;
     }
     audio.play().then(() => setPlayback((state) => ({ ...state, isPlaying: true }))).catch(() => {
       if (currentTrack?.file) {
         const startAt = playback.queueName === "Library" ? currentTrack.lastPosition ?? currentTime : 0;
-        loadAudioTrack(currentTrack.id, startAt, true, true);
+        void loadAudioTrack(currentTrack.id, startAt, true, true);
         setPlayback((state) => ({ ...state, isPlaying: true }));
         return;
       }
@@ -310,7 +323,7 @@ export default function App() {
     const index = queue.indexOf(playback.currentTrackId);
     const nextIndex = playback.shuffle ? Math.floor(Math.random() * queue.length) : index + 1;
     const nextId = nextIndex >= queue.length ? queue[0] : queue[nextIndex];
-    loadAudioTrack(nextId, 0, true, false);
+    void loadAudioTrack(nextId, 0, true, false);
     if (nextIndex >= queue.length) {
       setPlayback((state) => ({ ...state, currentTrackId: queue[0], isPlaying: true }));
       return;
@@ -322,7 +335,7 @@ export default function App() {
     if (!playback.queue.length || !playback.currentTrackId) return;
     const index = playback.queue.indexOf(playback.currentTrackId);
     const previousId = playback.queue[Math.max(0, index - 1)];
-    loadAudioTrack(previousId, 0, true, false);
+    void loadAudioTrack(previousId, 0, true, false);
     setPlayback((state) => ({ ...state, currentTrackId: previousId, isPlaying: true }));
   }
 
