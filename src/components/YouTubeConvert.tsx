@@ -125,7 +125,7 @@ export default function YouTubeConvert({ playlists, onAdd, onError }: YouTubeCon
       </div>
 
       <div className="glass space-y-4 rounded-3xl p-4">
-        <label className="flex min-h-24 items-center gap-4 rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
+        <div className="flex min-h-24 items-center gap-4 rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
           <Youtube className="accent-text shrink-0" size={30} />
           <span className="min-w-0 flex-1">
             <span className="block font-bold">YouTube link</span>
@@ -137,7 +137,7 @@ export default function YouTubeConvert({ playlists, onAdd, onError }: YouTubeCon
               inputMode="url"
             />
           </span>
-        </label>
+        </div>
       </div>
 
       <div className="space-y-3">
