@@ -1,5 +1,5 @@
 import { Home, Library as LibraryIcon, ListMusic, PlusCircle, Settings as SettingsIcon, X, Youtube } from "lucide-react";
-import type { CSSProperties, SyntheticEvent } from "react";
+import type { CSSProperties, SyntheticEvent, TouchEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AddMedia from "./components/AddMedia";
 import Library from "./components/Library";
@@ -22,6 +22,12 @@ const initialPlayback: PlaybackState = {
   repeat: "off",
   speed: 1,
 };
+
+const tabOrder: Tab[] = ["home", "library", "playlists", "youtube", "add", "settings"];
+
+function isInteractiveElement(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest("button, a, input, textarea, select, label, [data-no-swipe]"));
+}
 
 const accentVars: Record<SettingsType["accent"], CSSProperties> = {
   blue: {
@@ -72,6 +78,7 @@ export default function App() {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pageSwipeRef = useRef<{ x: number; y: number; tracking: boolean }>({ x: 0, y: 0, tracking: false });
 
   const playableTracks = useMemo(() => tracks.filter((track) => track.file || track.fileData), [tracks]);
   const currentTrack = tracks.find((track) => track.id === playback.currentTrackId);
@@ -232,6 +239,33 @@ export default function App() {
   function openPlaylist(playlist: Playlist) {
     setSelectedPlaylistId(playlist.id);
     setTab("playlists");
+  }
+
+  function shiftTab(direction: -1 | 1) {
+    setTab((current) => {
+      const index = tabOrder.indexOf(current);
+      return tabOrder[Math.max(0, Math.min(tabOrder.length - 1, index + direction))] ?? current;
+    });
+  }
+
+  function handlePageTouchStart(event: TouchEvent<HTMLElement>) {
+    if (playerOpen || isInteractiveElement(event.target)) {
+      pageSwipeRef.current.tracking = false;
+      return;
+    }
+    const touch = event.touches[0];
+    pageSwipeRef.current = { x: touch.clientX, y: touch.clientY, tracking: true };
+  }
+
+  function handlePageTouchEnd(event: TouchEvent<HTMLElement>) {
+    const swipe = pageSwipeRef.current;
+    pageSwipeRef.current.tracking = false;
+    if (!swipe.tracking || playerOpen) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - swipe.x;
+    const dy = touch.clientY - swipe.y;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    shiftTab(dx < 0 ? 1 : -1);
   }
 
   async function startTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
@@ -461,7 +495,7 @@ export default function App() {
         onEnded={handleTrackEnded}
       />
 
-      <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-28 pt-5">
+      <main className="mx-auto min-h-screen w-full max-w-md px-4 pb-28 pt-5" onTouchStart={handlePageTouchStart} onTouchEnd={handlePageTouchEnd}>
         {tab === "home" && (
           <section className="page-enter space-y-5 pb-32">
             <div className="flex items-center justify-between">
@@ -556,7 +590,7 @@ export default function App() {
         )}
       </main>
 
-      <MiniPlayer track={currentTrack} isPlaying={playback.isPlaying} onOpen={() => setPlayerOpen(true)} onToggle={togglePlayback} />
+      <MiniPlayer track={currentTrack} isPlaying={playback.isPlaying} onOpen={() => setPlayerOpen(true)} onToggle={togglePlayback} onPrevious={previousTrack} onNext={nextTrack} />
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-black/80 px-2 pt-2 backdrop-blur-xl safe-bottom">
         <div className="mx-auto grid max-w-md grid-cols-6 gap-1">

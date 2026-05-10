@@ -1,4 +1,4 @@
-import { Loader2, Music2, Youtube } from "lucide-react";
+import { ExternalLink, Loader2, Music2, Youtube } from "lucide-react";
 import { useState } from "react";
 import type { Playlist, Track } from "../lib/types";
 import { extractMp3Cover, fileToBytes, readDuration, requestPersistentStorage } from "../lib/storage";
@@ -167,6 +167,14 @@ export default function YouTubeConvert({ playlists, onAdd, onError }: YouTubeCon
           Saved {lastAdded} to your library.
         </div>
       )}
+
+      <a className="glass flex items-center justify-between gap-4 rounded-3xl p-4" href="https://cnvmp3.com/v54" target="_blank" rel="noreferrer">
+        <span>
+          <span className="block font-black">Backup converter</span>
+          <span className="mt-2 block text-sm leading-6 text-white/55">Open cnvmp3.com/v54 if the built-in converter is unavailable.</span>
+        </span>
+        <ExternalLink className="accent-text shrink-0" size={22} />
+      </a>
     </section>
   );
 }

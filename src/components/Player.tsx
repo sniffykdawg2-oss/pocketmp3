@@ -1,4 +1,5 @@
 import { FastForward, Pause, Play, Repeat, Repeat1, Rewind, Shuffle, SkipBack, SkipForward, X } from "lucide-react";
+import { useRef } from "react";
 import type { RepeatMode, Track } from "../lib/types";
 import { formatTime } from "../lib/storage";
 
@@ -22,6 +23,7 @@ interface PlayerProps {
 }
 
 export default function Player(props: PlayerProps) {
+  const swipeRef = useRef({ x: 0, y: 0 });
   const {
     track,
     isPlaying,
@@ -44,7 +46,21 @@ export default function Player(props: PlayerProps) {
   const repeatIcon = repeat === "one" ? <Repeat1 size={21} /> : <Repeat size={21} />;
 
   return (
-    <div className="page-enter fixed inset-0 z-40 flex flex-col bg-[#05070c] px-5 pb-5 pt-4">
+    <div
+      className="page-enter fixed inset-0 z-40 flex flex-col bg-[#05070c] px-5 pb-5 pt-4"
+      onTouchStart={(event) => {
+        const touch = event.touches[0];
+        swipeRef.current = { x: touch.clientX, y: touch.clientY };
+      }}
+      onTouchEnd={(event) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest("button, input, select")) return;
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - swipeRef.current.x;
+        const dy = touch.clientY - swipeRef.current.y;
+        if (dy > 90 && Math.abs(dy) > Math.abs(dx) * 1.35) onClose();
+      }}
+    >
       <div className="flex items-center justify-between pt-2">
         <button className="grid h-11 w-11 place-items-center rounded-full bg-white/10" onClick={onClose} aria-label="Close player">
           <X size={22} />
