@@ -23,7 +23,9 @@ function corsHeaders(origin) {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Private-Network": "true",
     "Access-Control-Expose-Headers": "Content-Disposition,X-Video-Title,X-Video-Creator,X-Video-Duration",
+    "Cross-Origin-Resource-Policy": "cross-origin",
     "Vary": "Origin",
   };
 }
