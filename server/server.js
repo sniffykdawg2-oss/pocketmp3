@@ -75,8 +75,8 @@ function runCommand(command, args, cwd) {
   });
 }
 
-function extractorArgs() {
-  return ["--extractor-args", "youtube:player_client=default,-tv,web_safari,web_embedded"];
+function extractorArgs(playerClient) {
+  return ["--extractor-args", `youtube:player_client=${playerClient}`];
 }
 
 async function writeCookiesFile(cwd) {
@@ -86,27 +86,48 @@ async function writeCookiesFile(cwd) {
   return ["--cookies", cookiesPath];
 }
 
-function youtubeInfoArgs(url, cookieArgs) {
-  return ["--ignore-config", "--dump-json", "--no-playlist", "--skip-download", ...cookieArgs, ...extractorArgs(), url];
+function youtubeInfoArgs(url, cookieArgs, playerClient) {
+  return ["--ignore-config", "--dump-json", "--no-playlist", "--skip-download", ...cookieArgs, ...extractorArgs(playerClient), url];
 }
 
-function youtubeDownloadArgs(url, cookieArgs) {
+function youtubeDownloadArgs(url, cookieArgs, playerClient, format) {
   return [
     "--ignore-config",
     "--no-playlist",
     ...cookieArgs,
     "-f",
-    "bestaudio/best",
+    format,
     "-x",
     "--audio-format",
     "mp3",
     "--ffmpeg-location",
     dirname(FFMPEG),
-    ...extractorArgs(),
+    ...extractorArgs(playerClient),
     "-o",
     "audio.%(ext)s",
     url,
   ];
+}
+
+async function downloadWithFallbacks(url, cookieArgs, tempDir) {
+  const attempts = [
+    { playerClient: "web_embedded,web_safari", format: "bestaudio/best" },
+    { playerClient: "web_embedded,web_safari", format: "233/234/bestaudio/best" },
+    { playerClient: "default,-tv,-tv_downgraded,web_embedded,web_safari", format: "bestaudio/best" },
+    { playerClient: "web", format: "233/234/bestaudio/best" },
+  ];
+  const errors = [];
+
+  for (const attempt of attempts) {
+    try {
+      await runCommand(YT_DLP, youtubeDownloadArgs(url, cookieArgs, attempt.playerClient, attempt.format), tempDir);
+      return attempt;
+    } catch (error) {
+      errors.push(`${attempt.playerClient} ${attempt.format}: ${error.message}`);
+    }
+  }
+
+  throw new Error(errors.join("\n\n"));
 }
 
 async function normalizeMp3(input, output, cwd) {
@@ -146,13 +167,13 @@ async function convertYouTube(req, res) {
     const cookieArgs = await writeCookiesFile(tempDir);
     let metadata = {};
     try {
-      const info = await runCommand(YT_DLP, youtubeInfoArgs(url, cookieArgs), tempDir);
+      const info = await runCommand(YT_DLP, youtubeInfoArgs(url, cookieArgs, "web_embedded,web_safari"), tempDir);
       metadata = JSON.parse(info.stdout);
     } catch {
       metadata = {};
     }
 
-    await runCommand(YT_DLP, youtubeDownloadArgs(url, cookieArgs), tempDir);
+    await downloadWithFallbacks(url, cookieArgs, tempDir);
     const files = await readdir(tempDir);
     const mp3File = files.find((file) => file.toLowerCase().endsWith(".mp3"));
     if (!mp3File) throw new Error("Conversion finished, but no MP3 file was created.");
