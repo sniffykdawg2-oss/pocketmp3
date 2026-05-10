@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
@@ -9,6 +9,7 @@ const YT_DLP = process.env.YT_DLP_PATH || "yt-dlp";
 const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
 const FFPROBE = process.env.FFPROBE_PATH || "ffprobe";
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "https://sniffykdawg2-oss.github.io";
+const YOUTUBE_COOKIES_B64 = process.env.YOUTUBE_COOKIES_B64 || "";
 const youtubeHosts = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"]);
 
 function isAllowedOrigin(origin = "") {
@@ -78,10 +79,22 @@ function extractorArgs() {
   return ["--extractor-args", "youtube:player_client=default,-tv,web_safari,web_embedded"];
 }
 
-function youtubeDownloadArgs(url) {
+async function writeCookiesFile(cwd) {
+  if (!YOUTUBE_COOKIES_B64) return [];
+  const cookiesPath = join(cwd, "youtube-cookies.txt");
+  await writeFile(cookiesPath, Buffer.from(YOUTUBE_COOKIES_B64, "base64"));
+  return ["--cookies", cookiesPath];
+}
+
+function youtubeInfoArgs(url, cookieArgs) {
+  return ["--ignore-config", "--dump-json", "--no-playlist", "--skip-download", ...cookieArgs, ...extractorArgs(), url];
+}
+
+function youtubeDownloadArgs(url, cookieArgs) {
   return [
     "--ignore-config",
     "--no-playlist",
+    ...cookieArgs,
     "-f",
     "bestaudio/best",
     "-x",
@@ -130,15 +143,16 @@ async function convertYouTube(req, res) {
     }
 
     tempDir = await mkdtemp(join(tmpdir(), "pocketmp3-"));
+    const cookieArgs = await writeCookiesFile(tempDir);
     let metadata = {};
     try {
-      const info = await runCommand(YT_DLP, ["--ignore-config", "--dump-json", "--no-playlist", "--skip-download", ...extractorArgs(), url], tempDir);
+      const info = await runCommand(YT_DLP, youtubeInfoArgs(url, cookieArgs), tempDir);
       metadata = JSON.parse(info.stdout);
     } catch {
       metadata = {};
     }
 
-    await runCommand(YT_DLP, youtubeDownloadArgs(url), tempDir);
+    await runCommand(YT_DLP, youtubeDownloadArgs(url, cookieArgs), tempDir);
     const files = await readdir(tempDir);
     const mp3File = files.find((file) => file.toLowerCase().endsWith(".mp3"));
     if (!mp3File) throw new Error("Conversion finished, but no MP3 file was created.");
