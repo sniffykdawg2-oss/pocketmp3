@@ -1,5 +1,5 @@
 import { Pause, Play } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Track } from "../lib/types";
 
 interface MiniPlayerProps {
@@ -12,23 +12,41 @@ interface MiniPlayerProps {
 }
 
 export default function MiniPlayer({ track, isPlaying, onOpen, onToggle, onPrevious, onNext }: MiniPlayerProps) {
-  const swipeRef = useRef({ x: 0, y: 0 });
+  const swipeRef = useRef({ x: 0, y: 0, dragging: false });
+  const [dragX, setDragX] = useState(0);
   if (!track) return null;
 
   return (
     <div className="slide-up fixed bottom-[5.75rem] left-3 right-3 z-30">
       <div
         className="glass flex h-16 items-center gap-3 rounded-2xl px-3 shadow-2xl"
+        style={{
+          transform: `translateX(${dragX}px)`,
+          opacity: Math.max(0.72, 1 - Math.abs(dragX) / 240),
+          transition: swipeRef.current.dragging ? "none" : "transform 180ms ease, opacity 180ms ease",
+        }}
         onTouchStart={(event) => {
           const touch = event.touches[0];
-          swipeRef.current = { x: touch.clientX, y: touch.clientY };
+          swipeRef.current = { x: touch.clientX, y: touch.clientY, dragging: true };
+        }}
+        onTouchMove={(event) => {
+          const touch = event.touches[0];
+          const dx = touch.clientX - swipeRef.current.x;
+          const dy = touch.clientY - swipeRef.current.y;
+          if (Math.abs(dx) > Math.abs(dy)) setDragX(Math.max(-110, Math.min(110, dx)));
         }}
         onTouchEnd={(event) => {
           const touch = event.changedTouches[0];
           const dx = touch.clientX - swipeRef.current.x;
           const dy = touch.clientY - swipeRef.current.y;
+          swipeRef.current.dragging = false;
+          setDragX(0);
           if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
           dx < 0 ? onNext() : onPrevious();
+        }}
+        onTouchCancel={() => {
+          swipeRef.current.dragging = false;
+          setDragX(0);
         }}
       >
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={onOpen}>

@@ -26,7 +26,7 @@ const initialPlayback: PlaybackState = {
 const tabOrder: Tab[] = ["home", "library", "playlists", "youtube", "add", "settings"];
 
 function isInteractiveElement(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest("button, a, input, textarea, select, label, [data-no-swipe]"));
+  return target instanceof Element && Boolean(target.closest("input, textarea, select, [data-no-swipe]"));
 }
 
 const accentVars: Record<SettingsType["accent"], CSSProperties> = {
@@ -265,7 +265,7 @@ export default function App() {
     const dx = touch.clientX - swipe.x;
     const dy = touch.clientY - swipe.y;
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-    shiftTab(dx < 0 ? 1 : -1);
+    shiftTab(dx > 0 ? 1 : -1);
   }
 
   async function startTrack(trackId: string, startAt = 0, shouldPlay = true, showBlockedMessage = false) {
