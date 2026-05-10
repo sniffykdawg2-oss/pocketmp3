@@ -1,16 +1,44 @@
 import { createServer } from "node:http";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 
 const PORT = Number(process.env.PORT || 10000);
-const YT_DLP = process.env.YT_DLP_PATH || "yt-dlp";
-const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
-const FFPROBE = process.env.FFPROBE_PATH || "ffprobe";
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "https://sniffykdawg2-oss.github.io";
 const YOUTUBE_COOKIES_B64 = process.env.YOUTUBE_COOKIES_B64 || "";
 const youtubeHosts = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"]);
+
+function firstExisting(paths) {
+  return paths.find((path) => path && existsSync(path));
+}
+
+function newestCellarBinary(formula, binary) {
+  const cellar = `/opt/homebrew/Cellar/${formula}`;
+  if (!existsSync(cellar)) return undefined;
+  const versions = readdirSync(cellar).sort().reverse();
+  return firstExisting(versions.map((version) => join(cellar, version, "bin", binary)));
+}
+
+function resolveCommand(command, envPath) {
+  if (envPath) return envPath;
+  return (
+    firstExisting([
+      join(process.cwd(), "..", ".tools", command),
+      join(process.cwd(), ".tools", command),
+      `/opt/homebrew/bin/${command}`,
+      `/usr/local/bin/${command}`,
+      `/usr/bin/${command}`,
+      `/bin/${command}`,
+      command === "ffmpeg" || command === "ffprobe" ? newestCellarBinary("ffmpeg", command) : undefined,
+    ]) || command
+  );
+}
+
+const YT_DLP = resolveCommand("yt-dlp", process.env.YT_DLP_PATH);
+const FFMPEG = resolveCommand("ffmpeg", process.env.FFMPEG_PATH);
+const FFPROBE = resolveCommand("ffprobe", process.env.FFPROBE_PATH);
 
 function isAllowedOrigin(origin = "") {
   if (!origin) return true;
