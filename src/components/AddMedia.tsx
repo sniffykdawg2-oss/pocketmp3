@@ -23,7 +23,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
 
   async function saveMedia() {
     const selected = file;
-    if (!selected) return onError("Choose an MP3 file first.");
+    if (!selected) return onError("Choose an audio or video file first.");
     if (!isSupportedFile(selected)) return onError("That file type is not supported here.");
     if (selected.size > maxFileSize) return onError("That file is too large for comfortable browser storage.");
 
@@ -42,7 +42,7 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
         file: storedFile,
         fileData,
         fileName: selected.name,
-        mimeType: storedFile.type || "audio/mpeg",
+        mimeType: storedFile.type || selected.type || "audio/mpeg",
         size: storedFile.size,
         duration,
         cover,
@@ -75,10 +75,10 @@ export default function AddMedia({ playlists, onAdd, onError }: AddMediaProps) {
         <label className="flex min-h-24 cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
           <FileAudio className="accent-text" size={30} />
           <span className="min-w-0">
-            <span className="block font-bold">{file ? file.name : "Choose MP3 file"}</span>
-            <span className="text-xs text-white/50">MP3 files only for local playback.</span>
+            <span className="block font-bold">{file ? file.name : "Choose audio or video file"}</span>
+            <span className="text-xs text-white/50">MP3, MP4, M4A, or MOV for local playback.</span>
           </span>
-          <input className="hidden" type="file" accept=".mp3,audio/mpeg,audio/mp3" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input className="hidden" type="file" accept=".mp3,.mp4,.m4a,.mov,audio/mpeg,audio/mp3,audio/mp4,video/mp4,video/quicktime" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
       </div>
 

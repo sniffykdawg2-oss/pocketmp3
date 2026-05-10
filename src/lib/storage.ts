@@ -1,11 +1,15 @@
 import type { MetadataExport, Playlist, Settings, Track } from "./types";
 
 export const supportedTypes = [
+  "audio/mp4",
+  "audio/m4a",
   "audio/mpeg",
   "audio/mp3",
+  "video/mp4",
+  "video/quicktime",
 ];
 
-export const supportedExtensions = [".mp3"];
+export const supportedExtensions = [".m4a", ".mov", ".mp3", ".mp4"];
 export const maxFileSize = 350 * 1024 * 1024;
 
 export function isSupportedFile(file: File) {
@@ -25,9 +29,10 @@ export async function fileToBytes(file: Blob) {
   return file.arrayBuffer();
 }
 
-export async function createPlaybackBlob(track: Pick<Track, "file" | "fileData">) {
-  if (track.fileData) return new Blob([track.fileData], { type: "audio/mpeg" });
-  if (track.file) return new Blob([await track.file.arrayBuffer()], { type: "audio/mpeg" });
+export async function createPlaybackBlob(track: Pick<Track, "file" | "fileData" | "mimeType">) {
+  const mimeType = "mimeType" in track && typeof track.mimeType === "string" ? track.mimeType : "audio/mpeg";
+  if (track.fileData) return new Blob([track.fileData], { type: mimeType || "audio/mpeg" });
+  if (track.file) return new Blob([await track.file.arrayBuffer()], { type: mimeType || track.file.type || "audio/mpeg" });
   throw new Error("This track does not have saved MP3 data.");
 }
 
