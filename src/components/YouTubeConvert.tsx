@@ -12,7 +12,11 @@ interface YouTubeConvertProps {
 const now = () => Date.now();
 const id = () => crypto.randomUUID();
 const converterApiBase = String(import.meta.env.VITE_CONVERTER_API_URL || "").replace(/\/$/, "");
-const converterApiUrl = `${converterApiBase}/api/convert-youtube`;
+const converterApiUrls = [
+  converterApiBase ? `${converterApiBase}/api/convert-youtube` : "/api/convert-youtube",
+  "http://localhost:10000/api/convert-youtube",
+  "http://127.0.0.1:10000/api/convert-youtube",
+].filter((url, index, urls) => urls.indexOf(url) === index);
 
 function decodeHeader(value: string | null) {
   if (!value) return "";
@@ -26,6 +30,33 @@ function decodeHeader(value: string | null) {
 function filenameFromDisposition(value: string | null) {
   const match = value?.match(/filename="([^"]+)"/i);
   return match?.[1] || "youtube-audio.mp3";
+}
+
+async function convertYouTube(url: string) {
+  let lastError = "Could not convert this YouTube link.";
+
+  for (const endpoint of converterApiUrls) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (response.ok) return response;
+
+      try {
+        const body = await response.json();
+        if (body?.error) lastError = body.error;
+      } catch {
+        lastError = "Could not convert this YouTube link.";
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Could not reach the converter.";
+    }
+  }
+
+  throw new Error(lastError);
 }
 
 export default function YouTubeConvert({ playlists, onAdd, onError }: YouTubeConvertProps) {
@@ -43,22 +74,7 @@ export default function YouTubeConvert({ playlists, onAdd, onError }: YouTubeCon
     setConverting(true);
     setLastAdded(null);
     try {
-      const response = await fetch(converterApiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: youtubeUrl }),
-      });
-
-      if (!response.ok) {
-        let message = "Could not convert this YouTube link.";
-        try {
-          const body = await response.json();
-          if (body?.error) message = body.error;
-        } catch {
-          // The server may return plain text for lower-level failures.
-        }
-        throw new Error(message);
-      }
+      const response = await convertYouTube(youtubeUrl);
 
       const blob = await response.blob();
       const title = decodeHeader(response.headers.get("X-Video-Title")) || "YouTube audio";
